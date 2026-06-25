@@ -1,0 +1,56 @@
+# Paths never copied to the public OSS export (the-talent-app).
+# Used by scripts/export-oss.sh — one pattern per line (rsync --exclude-from).
+
+# VCS & build artifacts
+.git/
+node_modules/
+dist/
+dist-ssr/
+
+# Secrets & local env (keep .env.example and supabase/functions/.env.example)
+.env
+.env.dev
+.env.local
+.env.prod
+.env.*.local
+.env.deploy
+.env.deploy.*
+scripts/.env.runner
+scripts/.env.runner.example
+scripts/.env.deploy.dev
+scripts/.env.deploy.prod
+
+# SparxIT internal automation
+scripts/sparx-runner.mjs
+scripts/com.sparxit.sparx-runner.plist
+scripts/sparx-runner.log
+scripts/download-storage.sh
+scripts/export-data.sql
+scripts/local-migrations/
+scripts/MIGRATION_README.md
+
+# AI / agent config (private repo only)
+CLAUDE.md
+CHITRA_KRA.md
+.claude/
+.cursor/
+
+# Private infra & deploy docs
+docs/GIT_REMOTE.md
+docs/EDGE_FUNCTIONS_SECRETS_SELF_HOSTED.md
+scripts/deploy-edge-functions.example.env
+Dockerfile
+Dockerfile-prod
+
+# Supabase diagnostics (not for public)
+supabase/issues/
+
+# SparxIT-only Chitragupta OSS social drafts (Twitter promotion — private)
+supabase/functions/chitra-social-draft/
+supabase/migrations/20260624000001_chitra_social_draft_cron.sql
+supabase/migrations/20260624000002_chitra_social_drafts_rls.sql
+supabase/migrations/20260624000003_chitra_social_drafts_super_admin_update.sql
+
+# OS / editor noise
+.DS_Store
+*.log
