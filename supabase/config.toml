@@ -1,0 +1,92 @@
+project_id = "qmazmrrgdgbawncsgqcf"
+
+[auth]
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = [
+  "http://127.0.0.1:5173/applicant/login",
+  "http://127.0.0.1:5173/applicant/login?verified=1",
+  "http://127.0.0.1:5173/applicant/dashboard",
+  "http://localhost:5173/applicant/login",
+  "http://localhost:5173/applicant/login?verified=1",
+  "http://localhost:5173/applicant/dashboard",
+]
+
+# Auth email templates — restart local stack after changes: supabase stop && supabase start
+# For self-hosted prod (clientwork.xyz), copy HTML into Dashboard → Authentication → Email Templates
+[auth.email.template.confirmation]
+subject = "Confirm your email — The Talent App"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your password — The Talent App"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Your sign-in link — The Talent App"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.invite]
+subject = "You're invited to The Talent App"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new email — The Talent App"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.reauthentication]
+subject = "{{ .Token }} is your verification code — The Talent App"
+content_path = "./supabase/templates/reauthentication.html"
+
+# Auth Send Email Hook — routes signup/recovery/etc. through send-auth-email edge function (AWS SES SMTP).
+# Requires SEND_AUTH_EMAIL_HOOK_SECRET in .env (format: v1,whsec_<base64>, 32–88 chars).
+# Local: supabase functions serve send-auth-email --no-verify-jwt --env-file .env.local
+# Then restart: supabase stop && supabase start
+[auth.hook.send_email]
+enabled = true
+uri = "http://host.docker.internal:54321/functions/v1/send-auth-email"
+secrets = "env(SEND_AUTH_EMAIL_HOOK_SECRET)"
+
+[functions.send-auth-email]
+verify_jwt = false
+
+[functions.send-invitation-email]
+verify_jwt = false
+
+[functions.execute-code]
+verify_jwt = false
+
+[functions.send-completion-email]
+verify_jwt = false
+
+[functions.candidate-portal]
+verify_jwt = false
+
+[functions.send-applicant-email]
+verify_jwt = false
+
+[functions.send-staff-email]
+verify_jwt = false
+
+[functions.interviewer-daily-digest]
+verify_jwt = false
+
+[functions.send-hire-email]
+verify_jwt = false
+
+[functions.generate-assessment]
+verify_jwt = true
+
+[functions.grade-assessment]
+verify_jwt = true
+
+[functions.parse-resume]
+verify_jwt = true
+
+[functions.analyze-candidate]
+verify_jwt = true
+
+[functions.enrich-profile]
+verify_jwt = true
+
+[functions.get-resume-signed-url]
+verify_jwt = true
