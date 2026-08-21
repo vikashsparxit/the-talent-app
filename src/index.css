@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* SparxIT Brand Colors - Red #D64541, Charcoal #262626 */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    /* SparxIT Red — overridden at runtime by BrandThemeProvider (see src/lib/brandTheme.ts) */
+    --primary: 2 65% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 45%;
+
+    /* SparxIT Charcoal accent */
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 40 95% 50%;
+    --warning-foreground: 35 90% 15%;
+
+    --info: 200 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 2 65% 55%;
+
+    --radius: 0.5rem;
+
+    /* Custom tokens - SparxIT themed */
+    --gradient-primary: linear-gradient(135deg, hsl(2 65% 55%) 0%, hsl(2 60% 48%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(0 0% 15%) 0%, hsl(0 0% 25%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
+    --shadow-card: 0 4px 20px -4px hsl(0 0% 15% / 0.08), 0 2px 8px -2px hsl(0 0% 15% / 0.04);
+    --shadow-card-hover: 0 8px 30px -6px hsl(0 0% 15% / 0.12), 0 4px 12px -4px hsl(0 0% 15% / 0.06);
+    --shadow-button: 0 2px 8px -2px hsl(2 65% 55% / 0.4);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 26%;
+    --sidebar-primary: 2 65% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 15%;
+    --sidebar-border: 0 0% 91%;
+    --sidebar-ring: 2 65% 55%;
+  }
+
+  .dark {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 2 65% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 2 65% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 55% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 40 90% 50%;
+    --warning-foreground: 35 90% 15%;
+
+    --info: 200 75% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 2 65% 55%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(2 65% 55%) 0%, hsl(2 60% 50%) 100%);
+    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
+    --shadow-card-hover: 0 8px 30px -6px hsl(0 0% 0% / 0.4);
+
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 2 65% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 2 65% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .card-elevated {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .card-elevated:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .score-ring {
+    background: conic-gradient(
+      hsl(var(--primary)) calc(var(--score) * 3.6deg),
+      hsl(var(--muted)) calc(var(--score) * 3.6deg)
+    );
+  }
+
+  .btn-gradient {
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-button);
+    color: hsl(var(--primary-foreground));
+  }
+
+  .btn-gradient:hover {
+    filter: brightness(1.1);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ── Chitragupta eye animations ─────────────────────────────────────────── */
+
+/* Single blink: eye stays open ~94% of the time, snaps shut briefly */
+@keyframes chitra-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97%           { transform: scaleY(0.07); }
+}
+
+/* Gaze: iris+pupil drifts to look right → center → up-left → center → down → center */
+@keyframes chitra-gaze {
+  0%,  7%  { transform: translate(0px,    0px);   }   /* forward */
+  12%, 22% { transform: translate(2.8px,  0px);   }   /* right   */
+  27%, 36% { transform: translate(0px,    0px);   }   /* forward */
+  41%, 51% { transform: translate(-2px,  -1.2px); }   /* up-left */
+  56%, 64% { transform: translate(0px,    0px);   }   /* forward */
+  68%, 78% { transform: translate(1px,   1.6px);  }   /* down    */
+  83%, 100%{ transform: translate(0px,    0px);   }   /* forward */
+}
+
+/* Wrapper: blink runs at 3.8s, gaze at 6s — different durations = natural desync */
+.chitra-eye-wrapper {
+  display: inline-flex;
+  transform-origin: center 58%;
+  animation: chitra-blink 3.8s ease-in-out infinite;
+}
+
+.chitra-eye-gaze {
+  animation: chitra-gaze 6s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+/* ── Mobile bottom nav safe areas ───────────────────────────────────────── */
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (max-width: 767px) {
+  html[data-bottom-nav] body {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
