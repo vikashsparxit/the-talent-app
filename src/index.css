@@ -1,0 +1,286 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* SparxIT Brand Colors - Red #D64541, Charcoal #262626 */
+    --background: 220 14% 97%;
+    --foreground: 0 0% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+
+    /* SparxIT Red — overridden at runtime by BrandThemeProvider (see src/lib/brandTheme.ts) */
+    --primary: 2 65% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 0 0% 20%;
+
+    --muted: 220 14% 94%;
+    --muted-foreground: 0 0% 45%;
+
+    /* SparxIT Charcoal accent */
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 40 95% 50%;
+    --warning-foreground: 35 90% 15%;
+
+    --info: 200 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 2 65% 55%;
+
+    --radius: 0.625rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+
+    /* Elevation scale */
+    --shadow-1: 0 1px 3px hsl(220 20% 20% / 0.06), 0 1px 2px hsl(220 20% 20% / 0.04);
+    --shadow-2: 0 4px 16px -4px hsl(220 20% 20% / 0.10), 0 2px 6px -2px hsl(220 20% 20% / 0.06);
+    --shadow-card: var(--shadow-1);
+    --shadow-card-hover: var(--shadow-2);
+
+    /* Status chip pastels (independent of brand primary) */
+    --chip-success-bg: 150 60% 94%;
+    --chip-success-text: 150 45% 28%;
+    --chip-warning-bg: 40 90% 94%;
+    --chip-warning-text: 35 80% 28%;
+    --chip-danger-bg: 0 70% 95%;
+    --chip-danger-text: 0 55% 38%;
+    --chip-neutral-bg: 220 14% 94%;
+    --chip-neutral-text: 220 9% 40%;
+
+    /* Custom tokens - SparxIT themed */
+    --gradient-primary: linear-gradient(135deg, hsl(2 65% 55%) 0%, hsl(2 60% 48%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(0 0% 15%) 0%, hsl(0 0% 25%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
+    --shadow-button: 0 2px 8px -2px hsl(2 65% 55% / 0.4);
+
+    /* Light ATS sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 9% 26%;
+    --sidebar-primary: 2 65% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 220 9% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 2 65% 55%;
+  }
+
+  .dark {
+    --background: 220 10% 8%;
+    --foreground: 0 0% 95%;
+
+    --card: 220 10% 12%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 220 10% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 2 65% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 10% 18%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 220 10% 16%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 2 65% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 150 55% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 40 90% 50%;
+    --warning-foreground: 35 90% 15%;
+
+    --info: 200 75% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 2 65% 55%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(2 65% 55%) 0%, hsl(2 60% 50%) 100%);
+    --shadow-1: 0 1px 3px hsl(0 0% 0% / 0.25), 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-2: 0 4px 16px -4px hsl(0 0% 0% / 0.35), 0 2px 6px -2px hsl(0 0% 0% / 0.2);
+    --shadow-card: var(--shadow-1);
+    --shadow-card-hover: var(--shadow-2);
+
+    --chip-success-bg: 150 30% 18%;
+    --chip-success-text: 150 45% 72%;
+    --chip-warning-bg: 40 40% 18%;
+    --chip-warning-text: 40 80% 72%;
+    --chip-danger-bg: 0 35% 18%;
+    --chip-danger-text: 0 60% 72%;
+    --chip-neutral-bg: 220 10% 18%;
+    --chip-neutral-text: 220 10% 72%;
+
+    --sidebar-background: 220 10% 10%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 2 65% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 10% 16%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 220 10% 16%;
+    --sidebar-ring: 2 65% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .card-elevated {
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .card-elevated:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .score-ring {
+    background: conic-gradient(
+      hsl(var(--primary)) calc(var(--score) * 3.6deg),
+      hsl(var(--muted)) calc(var(--score) * 3.6deg)
+    );
+  }
+
+  .btn-gradient {
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-button);
+    color: hsl(var(--primary-foreground));
+  }
+
+  .btn-gradient:hover {
+    filter: brightness(1.1);
+  }
+}
+
+@layer utilities {
+  .surface-canvas {
+    @apply bg-background;
+  }
+
+  .surface-card {
+    @apply bg-card rounded-xl;
+    box-shadow: var(--shadow-1);
+  }
+
+  .shadow-elev-1 {
+    box-shadow: var(--shadow-1);
+  }
+
+  .shadow-elev-2 {
+    box-shadow: var(--shadow-2);
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ── Chitragupta eye animations ─────────────────────────────────────────── */
+
+/* Single blink: eye stays open ~94% of the time, snaps shut briefly */
+@keyframes chitra-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  97%           { transform: scaleY(0.07); }
+}
+
+/* Gaze: iris+pupil drifts to look right → center → up-left → center → down → center */
+@keyframes chitra-gaze {
+  0%,  7%  { transform: translate(0px,    0px);   }   /* forward */
+  12%, 22% { transform: translate(2.8px,  0px);   }   /* right   */
+  27%, 36% { transform: translate(0px,    0px);   }   /* forward */
+  41%, 51% { transform: translate(-2px,  -1.2px); }   /* up-left */
+  56%, 64% { transform: translate(0px,    0px);   }   /* forward */
+  68%, 78% { transform: translate(1px,   1.6px);  }   /* down    */
+  83%, 100%{ transform: translate(0px,    0px);   }   /* forward */
+}
+
+/* Wrapper: blink runs at 3.8s, gaze at 6s — different durations = natural desync */
+.chitra-eye-wrapper {
+  display: inline-flex;
+  transform-origin: center 58%;
+  animation: chitra-blink 3.8s ease-in-out infinite;
+}
+
+.chitra-eye-gaze {
+  animation: chitra-gaze 6s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+/* ── Mobile bottom nav safe areas ───────────────────────────────────────── */
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (max-width: 767px) {
+  html[data-bottom-nav] body {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
