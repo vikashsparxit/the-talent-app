@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/vikashsparxit/the-talent-app/security/advisories/new
+    about: Report vulnerabilities privately. Please do not open public issues for security problems.
+  - name: Questions and help
+    url: https://github.com/vikashsparxit/the-talent-app/discussions/categories/q-a
+    about: Ask setup and usage questions in Discussions.
+  - name: Commercial support from SparxIT
+    url: https://www.sparxitsolutions.com
+    about: Hosting, customization and support plans.

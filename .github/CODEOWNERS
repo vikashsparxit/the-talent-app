@@ -1,0 +1,11 @@
+# Code owners for The Talent App.
+# Lead maintainer: Vikash Sharma (SparxIT). Later rules take precedence.
+
+*                       @vikashsparxit
+
+# Security-sensitive paths
+/supabase/migrations/   @vikashsparxit
+/supabase/functions/    @vikashsparxit
+/supabase/config.toml   @vikashsparxit
+/SECURITY.md            @vikashsparxit
+/.github/               @vikashsparxit
