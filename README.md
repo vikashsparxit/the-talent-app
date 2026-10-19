@@ -2,7 +2,7 @@
 
 > Open-source applicant tracking for teams that want control — jobs, pipeline, candidates, interviews, AI scoring, and an installable PWA.
 
-**Self-host:** [docs/LOCAL_SETUP_GUIDE.md](docs/LOCAL_SETUP_GUIDE.md) · **Website:** [thetalentapp.io](https://thetalentapp.io)
+**Self-host:** [docs/LOCAL_SETUP_GUIDE.md](docs/LOCAL_SETUP_GUIDE.md) · [How to self-host an open-source ATS](https://www.thetalentapp.io/self-host-ats/) · [Open-source Greenhouse alternative](https://www.thetalentapp.io/greenhouse-alternative/) · **Website:** [thetalentapp.io](https://www.thetalentapp.io/)
 
 [![Product demo — hiring board, AI resume parsing, and Chitragupta](docs/readme-assets/demo.gif)](docs/readme-assets/the-talent-app-demo.mp4)
 
@@ -17,7 +17,7 @@
 
 ## What is The Talent App?
 
-The Talent App is an open-source ATS that goes beyond tracking — it actively supports the hiring process. Recruiters manage candidates and pipelines; an optional AI agent named **Chitragupta** watches activity, enforces deadlines, escalates issues, and celebrates wins. For enterprise deployments, [SparxIT](https://www.sparxitsolutions.com) offers implementation and managed hosting — [book a demo](https://thetalentapp.io/demo) or see [SUPPORT.md](SUPPORT.md).
+The Talent App is an open-source ATS that goes beyond tracking — it actively supports the hiring process. Recruiters manage candidates and pipelines; an optional AI agent named **Chitragupta** watches activity, enforces deadlines, escalates issues, and celebrates wins. For enterprise deployments, [SparxIT](https://www.sparxitsolutions.com) offers implementation and managed hosting — [book a demo](https://www.thetalentapp.io/demo/) or see [SUPPORT.md](SUPPORT.md).
 
 ### Core Features
 
@@ -183,18 +183,18 @@ Hosting is environment-specific — see [docs/LOCAL_SETUP_GUIDE.md](docs/LOCAL_S
 
 ## Need help?
 
-- **Self-host:** [docs/LOCAL_SETUP_GUIDE.md](docs/LOCAL_SETUP_GUIDE.md) · [Self-host guide (web)](https://thetalentapp.io/self-host-ats) · [SUPPORT.md](SUPPORT.md)
-- **Product overview:** [thetalentapp.io](https://thetalentapp.io)
-- **Production demo / custom deploy:** [Book a demo](https://thetalentapp.io/demo)
+- **Self-host:** [docs/LOCAL_SETUP_GUIDE.md](docs/LOCAL_SETUP_GUIDE.md) · [Self-host guide (web)](https://www.thetalentapp.io/self-host-ats/) · [SUPPORT.md](SUPPORT.md)
+- **Product overview:** [thetalentapp.io](https://www.thetalentapp.io/)
+- **Production demo / custom deploy:** [Book a demo](https://www.thetalentapp.io/demo/)
 
 ### Guides (website)
 
 | Guide | Link |
 |-------|------|
-| What is an open-source ATS? | [thetalentapp.io/open-source-ats](https://thetalentapp.io/open-source-ats) |
-| How to self-host an ATS | [thetalentapp.io/self-host-ats](https://thetalentapp.io/self-host-ats) |
-| Greenhouse alternative | [thetalentapp.io/greenhouse-alternative](https://thetalentapp.io/greenhouse-alternative) |
-| How it works | [thetalentapp.io/how-it-works](https://thetalentapp.io/how-it-works) |
+| What is an open-source ATS? | [thetalentapp.io/open-source-ats](https://www.thetalentapp.io/open-source-ats/) |
+| How to self-host an ATS | [thetalentapp.io/self-host-ats](https://www.thetalentapp.io/self-host-ats/) |
+| Greenhouse alternative | [thetalentapp.io/greenhouse-alternative](https://www.thetalentapp.io/greenhouse-alternative/) |
+| How it works | [thetalentapp.io/how-it-works](https://www.thetalentapp.io/how-it-works/) |
 
 ---
 
