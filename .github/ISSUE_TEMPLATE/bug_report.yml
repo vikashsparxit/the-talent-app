@@ -1,0 +1,123 @@
+name: Bug report
+description: Something in The Talent App does not work as documented.
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem.
+
+        **Security issues:** do not open a public issue. Use private vulnerability
+        reporting (Security tab → Report a vulnerability) as described in SECURITY.md.
+
+        Please remove passwords, API keys, tokens, candidate personal data and
+        internal hostnames from anything you paste below.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit SHA you are running (for example v1.0.0).
+      placeholder: v1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment type
+      options:
+        - Self-hosted Supabase (Docker)
+        - Supabase Cloud
+        - Local development (supabase start)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Pipeline / hiring
+        - Candidates / talent database
+        - Applicant portal / careers
+        - Assessments
+        - Interviews / calendar
+        - Email notifications
+        - AI features
+        - Authentication / MFA / roles
+        - Database migrations
+        - Edge functions
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: User role affected
+      multiple: true
+      options:
+        - Admin
+        - HR
+        - Recruiter
+        - Interviewer
+        - Applicant
+        - Not role-specific
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser and OS, Node.js version, Supabase / Postgres version where relevant.
+      placeholder: |
+        Browser: Chrome 130 on macOS 15
+        Node.js: 22.x
+        Supabase: self-hosted, Postgres 15
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Browser console, edge function logs or SQL errors. This is rendered as code, so no backticks are needed.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and discussions and did not find a duplicate.
+          required: true
+        - label: I applied every migration for my version and restarted the edge functions container.
+          required: false
+        - label: This report contains no secrets or personal data.
+          required: true

@@ -1,0 +1,342 @@
+/*
+ * Hover / keyboard-focus micro-motion for lucide icons, keyed by the class
+ * lucide-react renders (`lucide-<kebab-name>`, canonical name, not the alias:
+ * Home → lucide-house, Edit → lucide-square-pen, BarChart3 → lucide-chart-column).
+ *
+ * An icon plays once when its nearest interactive ancestor (direct parent, or
+ * one non-interactive wrapper up) is hovered or focus-visible. Unlisted icons
+ * stay static. Keyframes use the individual translate/rotate/scale properties
+ * so they compose with existing transforms (e.g. rotated chevrons) instead of
+ * replacing them. Part transforms are in the 24-unit viewBox (≈0.67px each at 16px).
+ *
+ * Opt out: `.icon-static` on the svg. Opt in a non-interactive container: `.icon-motion`.
+ */
+
+@keyframes icon-hop {
+  40% { translate: 0 -2px; }
+}
+
+@keyframes icon-nudge {
+  40% { translate: var(--icon-dx, 0) var(--icon-dy, 0); }
+}
+
+@keyframes icon-wiggle {
+  25% { rotate: -12deg; }
+  50% { rotate: 8deg; }
+  75% { rotate: -4deg; }
+}
+
+@keyframes icon-ring {
+  15% { rotate: 14deg; }
+  35% { rotate: -12deg; }
+  55% { rotate: 8deg; }
+  75% { rotate: -4deg; }
+}
+
+@keyframes icon-tilt {
+  40% { rotate: var(--icon-tilt, -12deg); }
+}
+
+@keyframes icon-pop {
+  40% { scale: 1.1; }
+}
+
+@keyframes icon-twinkle {
+  40% { scale: 1.1; rotate: 15deg; }
+}
+
+@keyframes icon-turn {
+  to { rotate: var(--icon-turn, 90deg); }
+}
+
+@keyframes icon-shake {
+  25% { translate: -1.5px 0; }
+  50% { translate: 1.5px 0; }
+  75% { translate: -1px 0; }
+}
+
+@keyframes icon-blink {
+  45% { scale: 1 0.15; }
+}
+
+@keyframes icon-open {
+  40% { scale: 1.1 1; }
+}
+
+@keyframes icon-part-lift {
+  40% { translate: var(--part-dx, 0) var(--part-dy, -2px); }
+}
+
+@keyframes icon-part-slide-in {
+  from { translate: -4px 0; opacity: 0; }
+}
+
+@keyframes icon-part-grow {
+  from { scale: 1 0.3; }
+}
+
+@keyframes icon-part-turn {
+  to { rotate: var(--part-turn, 90deg); }
+}
+
+@keyframes icon-part-draw {
+  from { stroke-dasharray: var(--part-length); stroke-dashoffset: var(--part-length); }
+  to { stroke-dasharray: var(--part-length); stroke-dashoffset: 0; }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root:not(:has([aria-roledescription][aria-pressed="true"]))
+    :is(a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], summary, [data-sidebar="menu-button"], .icon-motion):not(:disabled, [aria-disabled="true"], [data-disabled], [aria-roledescription]):is(:hover, :focus-visible)
+    > svg.lucide:not([class*="animate-"], .icon-static, [class~="h-10"], [class~="h-12"], [class~="h-16"], [class~="h-20"], [class~="size-10"], [class~="size-12"], [class~="size-16"]),
+  :root:not(:has([aria-roledescription][aria-pressed="true"]))
+    :is(a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], summary, [data-sidebar="menu-button"], .icon-motion):not(:disabled, [aria-disabled="true"], [data-disabled], [aria-roledescription]):is(:hover, :focus-visible)
+    > :not(a, button, [role], input, select, textarea)
+    > svg.lucide:not([class*="animate-"], .icon-static, [class~="h-10"], [class~="h-12"], [class~="h-16"], [class~="h-20"], [class~="size-10"], [class~="size-12"], [class~="size-16"]) {
+    animation: var(--icon-motion, none) var(--icon-duration, var(--dur-slow)) var(--ease-icon) backwards;
+  }
+
+  :root:not(:has([aria-roledescription][aria-pressed="true"]))
+    :is(a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], summary, [data-sidebar="menu-button"], .icon-motion):not(:disabled, [aria-disabled="true"], [data-disabled], [aria-roledescription]):is(:hover, :focus-visible)
+    > svg.lucide:not([class*="animate-"], .icon-static, [class~="h-10"], [class~="h-12"], [class~="h-16"], [class~="h-20"], [class~="size-10"], [class~="size-12"], [class~="size-16"]) > *,
+  :root:not(:has([aria-roledescription][aria-pressed="true"]))
+    :is(a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], summary, [data-sidebar="menu-button"], .icon-motion):not(:disabled, [aria-disabled="true"], [data-disabled], [aria-roledescription]):is(:hover, :focus-visible)
+    > :not(a, button, [role], input, select, textarea)
+    > svg.lucide:not([class*="animate-"], .icon-static, [class~="h-10"], [class~="h-12"], [class~="h-16"], [class~="h-20"], [class~="size-10"], [class~="size-12"], [class~="size-16"]) > * {
+    animation: var(--part-motion, none) var(--dur-slow) var(--ease-icon) var(--part-delay, 0ms) backwards;
+  }
+
+  .lucide > * {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  /* Lift */
+  .lucide-house, .lucide-map-pin, .lucide-pin, .lucide-gift, .lucide-trophy, .lucide-award,
+  .lucide-medal, .lucide-crown, .lucide-mail, .lucide-mail-check, .lucide-file-text,
+  .lucide-file-spreadsheet, .lucide-file-question, .lucide-briefcase, .lucide-building2,
+  .lucide-store, .lucide-archive, .lucide-archive-restore, .lucide-layers, .lucide-user,
+  .lucide-user-round, .lucide-user-check, .lucide-user-x, .lucide-user-minus, .lucide-mic,
+  .lucide-linkedin, .lucide-twitter {
+    --icon-motion: icon-hop;
+  }
+
+  /* Nudge in the direction the icon points */
+  .lucide-chevron-right, .lucide-arrow-right, .lucide-log-out, .lucide-play {
+    --icon-motion: icon-nudge;
+    --icon-duration: var(--dur-base);
+    --icon-dx: 2px;
+  }
+
+  .lucide-chevron-left, .lucide-arrow-left, .lucide-panel-left {
+    --icon-motion: icon-nudge;
+    --icon-duration: var(--dur-base);
+    --icon-dx: -2px;
+  }
+
+  .lucide-chevron-down, .lucide-download, .lucide-save, .lucide-filter {
+    --icon-motion: icon-nudge;
+    --icon-duration: var(--dur-base);
+    --icon-dy: 2px;
+  }
+
+  .lucide-chevron-up, .lucide-upload {
+    --icon-motion: icon-nudge;
+    --icon-duration: var(--dur-base);
+    --icon-dy: -2px;
+  }
+
+  .lucide-external-link, .lucide-send, .lucide-rocket, .lucide-trending-up, .lucide-share2 {
+    --icon-motion: icon-nudge;
+    --icon-duration: var(--dur-base);
+    --icon-dx: 1.5px;
+    --icon-dy: -1.5px;
+  }
+
+  .lucide-trending-down {
+    --icon-motion: icon-nudge;
+    --icon-duration: var(--dur-base);
+    --icon-dx: 1.5px;
+    --icon-dy: 1.5px;
+  }
+
+  /* Wiggle around the pen tip / flag pole */
+  .lucide-pencil, .lucide-square-pen, .lucide-notebook-pen, .lucide-clipboard-pen,
+  .lucide-flag, .lucide-paperclip {
+    --icon-motion: icon-wiggle;
+    transform-origin: 20% 80%;
+  }
+
+  .lucide-wrench {
+    --icon-motion: icon-wiggle;
+  }
+
+  /* Ring */
+  .lucide-bell {
+    --icon-motion: icon-ring;
+    transform-origin: 50% 10%;
+  }
+
+  .lucide-phone, .lucide-phone-call {
+    --icon-motion: icon-ring;
+  }
+
+  .lucide-megaphone {
+    --icon-motion: icon-ring;
+    transform-origin: 20% 50%;
+  }
+
+  /* Tilt */
+  .lucide-search, .lucide-tag, .lucide-tags, .lucide-key-round, .lucide-link, .lucide-link2,
+  .lucide-graduation-cap, .lucide-scale, .lucide-palette, .lucide-lock, .lucide-circle-help {
+    --icon-motion: icon-tilt;
+  }
+
+  .lucide-search {
+    transform-origin: 40% 40%;
+  }
+
+  .lucide-thumbs-up {
+    --icon-motion: icon-tilt;
+    --icon-tilt: -15deg;
+    transform-origin: 20% 80%;
+  }
+
+  .lucide-thumbs-down {
+    --icon-motion: icon-tilt;
+    --icon-tilt: -15deg;
+    transform-origin: 80% 20%;
+  }
+
+  /* Pop */
+  .lucide-check, .lucide-circle-check, .lucide-circle-check-big, .lucide-check-check,
+  .lucide-list-checks, .lucide-heart, .lucide-target, .lucide-shield, .lucide-shield-check,
+  .lucide-shield-alert, .lucide-shield-x, .lucide-zap, .lucide-video, .lucide-camera,
+  .lucide-image, .lucide-layout-grid, .lucide-layout-template, .lucide-pause,
+  .lucide-circle-pause, .lucide-info, .lucide-message-square, .lucide-message-square-warning {
+    --icon-motion: icon-pop;
+  }
+
+  .lucide-sparkles, .lucide-star {
+    --icon-motion: icon-twinkle;
+  }
+
+  /* Turn: every one of these is rotationally symmetric at the end angle */
+  .lucide-settings, .lucide-plus, .lucide-x {
+    --icon-motion: icon-turn;
+  }
+
+  .lucide-refresh-cw {
+    --icon-motion: icon-turn;
+    --icon-turn: 180deg;
+  }
+
+  .lucide-rotate-ccw {
+    --icon-motion: icon-tilt;
+    --icon-tilt: -45deg;
+  }
+
+  .lucide-ban, .lucide-circle-x {
+    --icon-motion: icon-shake;
+  }
+
+  .lucide-eye {
+    --icon-motion: icon-blink;
+  }
+
+  .lucide-book-open {
+    --icon-motion: icon-open;
+  }
+
+  /* Parts */
+  .lucide-users > :nth-child(n + 3) {
+    --part-motion: icon-part-slide-in;
+  }
+
+  .lucide-user-plus > :nth-child(n + 3) {
+    --part-motion: icon-part-turn;
+  }
+
+  :is(.lucide-calendar, .lucide-calendar-days, .lucide-calendar-check, .lucide-calendar-x) > :nth-child(-n + 2) {
+    --part-motion: icon-part-lift;
+  }
+
+  .lucide-calendar-check > :nth-child(5),
+  .lucide-clipboard-check > :nth-child(3) {
+    --part-motion: icon-part-draw;
+    --part-length: 9;
+    --part-delay: 50ms;
+  }
+
+  .lucide-clipboard-list > :nth-child(3),
+  .lucide-clipboard-list > :nth-child(4) {
+    --part-motion: icon-part-draw;
+    --part-length: 4;
+  }
+
+  .lucide-clipboard-list > :nth-child(4) {
+    --part-delay: 80ms;
+  }
+
+  :is(.lucide-chart-column, .lucide-chart-no-axes-column) > * {
+    transform-origin: bottom;
+  }
+
+  .lucide-chart-column > :nth-child(4),
+  .lucide-chart-no-axes-column > :nth-child(3) {
+    --part-motion: icon-part-grow;
+  }
+
+  .lucide-chart-column > :nth-child(3),
+  .lucide-chart-no-axes-column > :nth-child(2) {
+    --part-motion: icon-part-grow;
+    --part-delay: 60ms;
+  }
+
+  .lucide-chart-column > :nth-child(2),
+  .lucide-chart-no-axes-column > :nth-child(1) {
+    --part-motion: icon-part-grow;
+    --part-delay: 120ms;
+  }
+
+  .lucide-trash2 > :nth-child(1),
+  .lucide-trash2 > :nth-child(3) {
+    --part-motion: icon-part-lift;
+  }
+
+  .lucide-database > :nth-child(1) {
+    --part-motion: icon-part-lift;
+    --part-dy: -3px;
+  }
+
+  .lucide-database > :nth-child(3) {
+    --part-motion: icon-part-lift;
+    --part-dy: -1.5px;
+  }
+
+  .lucide-copy > :nth-child(1) {
+    --part-motion: icon-part-lift;
+    --part-dx: 1.5px;
+    --part-dy: 1.5px;
+  }
+
+  .lucide-clock > :nth-child(2) {
+    --part-motion: icon-part-turn;
+    --part-turn: 360deg;
+    transform-box: view-box;
+    transform-origin: 12px 12px;
+  }
+
+  .lucide-timer > :nth-child(2) {
+    --part-motion: icon-part-turn;
+    --part-turn: 360deg;
+    transform-box: view-box;
+    transform-origin: 12px 14px;
+  }
+
+  .lucide-gauge > :nth-child(1) {
+    --part-motion: icon-tilt;
+    --icon-tilt: 30deg;
+    transform-box: view-box;
+    transform-origin: 12px 14px;
+  }
+}
