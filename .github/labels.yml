@@ -1,0 +1,118 @@
+# Repository labels for The Talent App.
+# Format: name / color (hex, no #) / description. Compatible with common
+# label-sync tools, or apply once with the GitHub CLI (see RELEASE.md).
+
+# ── Type ──────────────────────────────────────────────────────────────────────
+- name: bug
+  color: d73a4a
+  description: Something does not work as documented
+- name: enhancement
+  color: a2eeef
+  description: New feature or improvement
+- name: docs
+  color: 0075ca
+  description: Documentation only
+- name: question
+  color: d876e3
+  description: Usage or setup question
+- name: security
+  color: b60205
+  description: Security hardening (vulnerabilities are reported privately)
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates
+- name: performance
+  color: fbca04
+  description: Speed, bundle size or resource usage
+- name: refactor
+  color: c5def5
+  description: Internal change with no behavior change
+
+# ── Status ────────────────────────────────────────────────────────────────────
+- name: needs-triage
+  color: ededed
+  description: Waiting for a maintainer to review
+- name: needs-info
+  color: fef2c0
+  description: More detail or a reproduction is needed from the reporter
+- name: confirmed
+  color: 0e8a16
+  description: Reproduced by a maintainer
+- name: "accepted: ships in next release"
+  color: 1d76db
+  description: Applied internally; included in the next tagged release
+- name: blocked
+  color: 5319e7
+  description: Waiting on another change or decision
+- name: wontfix
+  color: ffffff
+  description: Will not be worked on
+- name: duplicate
+  color: cfd3d7
+  description: Already tracked elsewhere
+- name: stale
+  color: e4e669
+  description: No activity; will be closed if nothing changes
+
+# ── Priority ──────────────────────────────────────────────────────────────────
+- name: P0
+  color: b60205
+  description: Critical, fix immediately
+- name: P1
+  color: d93f0b
+  description: High, next patch release
+- name: P2
+  color: fbca04
+  description: Medium, next minor release
+- name: P3
+  color: c2e0c6
+  description: Low, when time allows
+
+# ── Area ──────────────────────────────────────────────────────────────────────
+- name: area:pipeline
+  color: bfd4f2
+  description: Hiring pipeline, kanban and stages
+- name: area:candidates
+  color: bfd4f2
+  description: Talent database, resume parsing and scoring
+- name: area:applicant-portal
+  color: bfd4f2
+  description: Careers pages and applicant portal
+- name: area:assessments
+  color: bfd4f2
+  description: Assessments, grading and code execution
+- name: area:interviews
+  color: bfd4f2
+  description: Interviews, calendar and feedback
+- name: area:email
+  color: bfd4f2
+  description: Transactional email and notifications
+- name: area:ai
+  color: bfd4f2
+  description: AI features and prompts
+- name: area:auth
+  color: bfd4f2
+  description: Authentication, MFA, roles and permissions
+- name: area:migrations
+  color: bfd4f2
+  description: Database schema and row-level security
+- name: area:edge-functions
+  color: bfd4f2
+  description: Supabase edge functions
+- name: area:self-host
+  color: bfd4f2
+  description: Deployment and self-hosting
+- name: area:ci
+  color: bfd4f2
+  description: CI workflows and repository automation
+
+# ── Community ─────────────────────────────────────────────────────────────────
+- name: good first issue
+  color: 7057ff
+  description: Small, well-scoped task for new contributors
+- name: help wanted
+  color: 008672
+  description: Maintainers welcome a contribution
+- name: breaking-change
+  color: e11d21
+  description: Requires operator action or a major version bump
