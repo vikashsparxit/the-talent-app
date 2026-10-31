@@ -120,7 +120,7 @@ export default function Auth() {
       emailSchema.parse(loginEmail);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        errors.email = e.errors[0].message;
+        errors.email = e.issues[0].message;
       }
     }
     
@@ -128,7 +128,7 @@ export default function Auth() {
       passwordSchema.parse(loginPassword);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        errors.password = e.errors[0].message;
+        errors.password = e.issues[0].message;
       }
     }
     
@@ -143,7 +143,7 @@ export default function Auth() {
       nameSchema.parse(signupName);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        errors.name = e.errors[0].message;
+        errors.name = e.issues[0].message;
       }
     }
     
@@ -151,7 +151,7 @@ export default function Auth() {
       emailSchema.parse(signupEmail);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        errors.email = e.errors[0].message;
+        errors.email = e.issues[0].message;
       }
     }
     
@@ -159,7 +159,7 @@ export default function Auth() {
       passwordSchema.parse(signupPassword);
     } catch (e) {
       if (e instanceof z.ZodError) {
-        errors.password = e.errors[0].message;
+        errors.password = e.issues[0].message;
       }
     }
     
