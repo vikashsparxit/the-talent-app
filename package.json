@@ -1,7 +1,7 @@
 {
   "name": "the-talent-app",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Open-source applicant tracking system with hiring pipelines, interviews, assessments, and Gemini-powered candidate scoring.",
   "license": "MIT",
   "author": "SparxIT (https://www.sparxitsolutions.com)",

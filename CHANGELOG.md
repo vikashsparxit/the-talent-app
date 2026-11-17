@@ -13,11 +13,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned as 1.0.1: a maintenance release that clears all open dependency
-security advisories. No database changes; no migration is needed from 1.0.0.
+No unreleased changes.
+
+## [1.0.1] - 2026-11-17
+
+Adds Web Push, a Public Jobs API and assessment portal hardening, fixes the
+`advance_candidate_stage` authorization check, and clears the open production
+dependency advisories.
+
+**Database migrations required.** 1.0.1 adds migrations on top of the 1.0.0
+baseline, one of which must be run as the function owner, and one changes what
+anonymous clients can read from `jobs`. The public `main` branch was rebuilt
+after the v1.0.0 tag, so a v1.0.0 clone cannot fast-forward with `git pull`.
+Read [docs/UPGRADING.md](docs/UPGRADING.md) before you upgrade.
+
+### Added
+- Web Push for staff in-app notifications, delivered even when the app is
+  closed. Uses the standard Push API with a per-instance VAPID key pair; no
+  Firebase or paid push vendor is required. Payloads are generic (no candidate
+  names, emails or scores). Push stays off until you add the `push` row in
+  `internal_webhook_config` and set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and
+  `VAPID_SUBJECT` for edge functions. Events: interview reminders 60 and 15
+  minutes before, new application, candidate assigned and assessment graded.
+  New edge functions `send-push` and `push-config`. See
+  [docs/WEB_PUSH.md](docs/WEB_PUSH.md). Migrations:
+  `20261018000001_web_push.sql` (tables, trigger, pg_cron retry) and
+  `20261018000002_push_notification_events.sql`.
+- Public Jobs API for job boards and partner integrations: the `public-jobs`
+  edge function. See [docs/PUBLIC_JOBS_API.md](docs/PUBLIC_JOBS_API.md).
+- Assessment portal hardening (`20261011000003_assessment_portal_hardening.sql`,
+  with matching `candidate-portal` and `grade-assessment` changes):
+  - AI grading runs once per attempt, and the UI can tell "grading pending"
+    from a real score.
+  - Exam links expire: `token_expires_at` is set on new assignments. Existing
+    links with no expiry keep working.
+  - Server-side time limit: answers cannot be written after `started_at` plus
+    the duration, or after the deadline (plus a small grace), and overdue
+    attempts are submitted by a scheduled sweep.
+  - Signed-in applicants taking an exam from the dashboard get the same rules.
 
 ### Security
-- Cleared every open npm advisory (`npm audit` now reports 0 vulnerabilities):
+- `advance_candidate_stage` authorization fix. The function is
+  `SECURITY DEFINER`, and its old check
+  (`current_user IN ('postgres', 'service_role', 'supabase_admin')`) always
+  matched the function owner, so any signed-in user could advance any
+  candidate. Trusted callers are now a `service_role` JWT or a direct database
+  session as `postgres` / `supabase_admin` (`session_user`). Everyone else must
+  be admin/HR or a recruiter assigned to the job, both stages must belong to
+  the same job, and `advanced_by` is set to `auth.uid()`. Migrations:
+  `20261027000000_advance_candidate_stage_backup_definition.sql` (read-only;
+  save its output as the rollback copy),
+  `20261027000001_advance_candidate_stage_authz_fix.sql` (run as the function
+  owner) and `20261027000010_advance_candidate_stage_verify.sql` (read-only).
+  Smoke test: `supabase/scripts/smoke/20261027_advance_candidate_stage_authz_smoke.sql`.
+- Anonymous readers of `jobs` can select only the public posting columns (`id`,
+  `title`, `description`, `domain`, `department`, `location`, `job_type`,
+  `experience_level` and similar). Salary range, openings, assessment settings,
+  status notes and `created_by` are no longer readable without signing in.
+  Migration:
+  `20261030000001_jobs_anon_public_columns.sql`. **Breaking:** an anonymous
+  `select=*` on `jobs` now fails; anonymous clients must name the columns, or
+  use the Public Jobs API. Signed-in roles are unchanged.
+- `npm audit --omit=dev` reports 0 vulnerabilities. Eleven moderate and low
+  advisories remain in development-only tooling (eslint / typescript-eslint
+  via `minimatch` and `glob`, `serialize-javascript`, and `workbox-build` via
+  `vite-plugin-pwa`); they are not part of the built app.
   - `xlsx` prototype pollution and ReDoS (GHSA-4r6h-8v6p-xvw6,
     GHSA-5pgg-2g8v-p4x9): the unmaintained npm registry package is replaced by
     the official SheetJS 0.20.3 release from `cdn.sheetjs.com`.
@@ -26,6 +86,10 @@ security advisories. No database changes; no migration is needed from 1.0.0.
     vitest 4.1.
   - `braces`, `micromatch` and `postcss-selector-parser` denial of service
     (GHSA-vfj7-8cjw-p6xm, GHSA-rj75-hqrm-r3gf): Tailwind CSS 4.
+  - `zod` memory exhaustion when validating oversized constrained collections
+    (GHSA-mrhx-c7xc-m3w5, high; no 3.x fix): zod 3.25.76 to 4.6.7. The sign-in
+    form reads `ZodError.issues`, since zod 4 removed `ZodError.errors`.
+  - `fast-uri` 3.1.8 to 3.1.9 (lockfile only).
 
 ### Changed
 - Tailwind CSS 4. The theme moved from `tailwind.config.ts` to `@theme` in
@@ -392,5 +456,6 @@ Initial public release.
 - Mobile-first UI and an installable PWA. Business branding.
 - Vendor and referral tracking, announcements, and user offboarding.
 
-[Unreleased]: https://github.com/vikashsparxit/the-talent-app/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/vikashsparxit/the-talent-app/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/vikashsparxit/the-talent-app/releases/tag/v1.0.1
 [1.0.0]: https://github.com/vikashsparxit/the-talent-app/releases/tag/v1.0.0
