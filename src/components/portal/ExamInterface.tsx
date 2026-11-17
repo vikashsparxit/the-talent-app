@@ -29,6 +29,7 @@ import {
 } from '@/lib/assessmentFileUpload';
 import { safeExternalUrl } from '@/lib/utils';
 import { examEndsAt, isAttemptOverError } from '@/lib/assessmentGrading';
+import { usePasteGuard, type PasteAttempt } from '@/hooks/usePasteGuard';
 import type { IntegrityEvent } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -229,6 +230,26 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isStarted, assessmentInfo.id, accessToken, toast]);
+
+  // Blocked pastes are logged for the reviewer only; no escalation warnings, no effect on score.
+  const handlePasteAttempt = useCallback(
+    ({ inputKind, chars }: PasteAttempt) => {
+      const pasteEvent: IntegrityEvent = {
+        type: 'paste_attempt',
+        timestamp: new Date().toISOString(),
+        ...(currentQuestionRef.current ?? {}),
+        input_kind: inputKind,
+        ...(chars !== undefined ? { chars } : {}),
+      };
+      setIntegrityLog((prev) => [...prev, pasteEvent]);
+      logIntegrityRef.current.mutate({
+        candidateAssessmentId: assessmentInfo.id,
+        event: pasteEvent,
+        accessToken,
+      });
+    },
+    [assessmentInfo.id, accessToken]
+  );
 
   // Live counter for current away session
   useEffect(() => {
@@ -587,6 +608,7 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
               onResponseChange={(value) => handleResponseChange(currentQuestion.id, value)}
               accessToken={accessToken}
               candidateAssessmentId={assessmentInfo.id}
+              onPasteAttempt={handlePasteAttempt}
             />
           )}
 
@@ -623,9 +645,10 @@ interface QuestionDisplayProps {
   onExecutionResult?: (result: ExecutionResult) => void;
   accessToken?: string;
   candidateAssessmentId: string;
+  onPasteAttempt?: (attempt: PasteAttempt) => void;
 }
 
-function QuestionDisplay({
+export function QuestionDisplay({
   question,
   questionNumber,
   totalQuestions,
@@ -634,8 +657,14 @@ function QuestionDisplay({
   onExecutionResult,
   accessToken,
   candidateAssessmentId,
+  onPasteAttempt,
 }: QuestionDisplayProps) {
   const { toast } = useToast();
+  const subjectivePasteGuard = usePasteGuard({
+    inputKind: 'subjective',
+    throttleKey: question.id,
+    onAttempt: onPasteAttempt,
+  });
   const createUpload = useCreateAssessmentFileUpload();
   const [linkInput, setLinkInput] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -801,16 +830,18 @@ function QuestionDisplay({
         {question.type === 'subjective' && (
           <div className="space-y-2">
             <Textarea
+              {...subjectivePasteGuard}
               value={String(response ?? '')}
               onChange={(e) => onResponseChange(e.target.value)}
               placeholder="Type your answer here..."
               className="min-h-[200px]"
             />
-            {question.subjective_max_words && (
-              <p className="text-xs text-muted-foreground text-right">
-                Max words: {question.subjective_max_words}
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
+              <p>Pasting is disabled. Paste attempts are recorded for the reviewer.</p>
+              {question.subjective_max_words && (
+                <p className="shrink-0">Max words: {question.subjective_max_words}</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -823,6 +854,7 @@ function QuestionDisplay({
             accessToken={accessToken}
             onCodeChange={handleCodeChange}
             onExecutionResult={handleExecutionResult}
+            onPasteAttempt={onPasteAttempt}
           />
         )}
 

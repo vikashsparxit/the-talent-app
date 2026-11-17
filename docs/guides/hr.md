@@ -77,6 +77,7 @@ Use **Mark as Hired** on pipeline card — feeds dashboard hires, leaderboard, a
 
 - Assign assessments to any candidate.
 - Review proctoring signals (tab switches, timeline).
+- Paste attempts: pasting into written and code answers is blocked, and each attempt is shown on the integrity card and timeline (question, answer type, pasted length — never the text). It is a signal for review only and does not affect the score.
 - Export results to CSV.
 - **Analytics** tab (`/analytics`) for org-wide assessment metrics.
 

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Play, CheckCircle2, XCircle, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useExecuteCode, type TestCase, type TestResult, type ExecutionResult } from '@/hooks/useCodeExecution';
+import { usePasteGuard, type PasteAttempt } from '@/hooks/usePasteGuard';
 
 interface CodeEditorProps {
   code: string;
@@ -16,6 +17,7 @@ interface CodeEditorProps {
   accessToken?: string;
   onCodeChange: (code: string) => void;
   onExecutionResult?: (result: ExecutionResult) => void;
+  onPasteAttempt?: (attempt: PasteAttempt) => void;
 }
 
 export function CodeEditor({
@@ -26,10 +28,16 @@ export function CodeEditor({
   accessToken,
   onCodeChange,
   onExecutionResult,
+  onPasteAttempt,
 }: CodeEditorProps) {
   const [activeTab, setActiveTab] = useState('code');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const executeCode = useExecuteCode();
+  const pasteGuard = usePasteGuard({
+    inputKind: 'coding',
+    throttleKey: questionId ?? 'code',
+    onAttempt: onPasteAttempt,
+  });
 
   const handleRun = async () => {
     try {
@@ -107,11 +115,15 @@ export function CodeEditor({
 
         <TabsContent value="code" className="mt-4">
           <Textarea
+            {...pasteGuard}
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
             placeholder="Write your code here..."
             className="min-h-[350px] font-mono text-sm"
           />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Pasting is disabled. Paste attempts are recorded for the reviewer.
+          </p>
         </TabsContent>
 
         <TabsContent value="testcases" className="mt-4">

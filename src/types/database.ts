@@ -161,9 +161,20 @@ export interface CandidateAssessment {
 }
 
 export interface IntegrityEvent {
-  type: 'tab_switch' | 'focus_lost' | 'fullscreen_exit';
+  type:
+    | 'tab_switch'
+    | 'focus_lost'
+    | 'fullscreen_exit'
+    | 'paste_attempt'
+    // Written server-side when an attempt is closed without the candidate submitting.
+    | 'auto_submit_time_limit'
+    | 'auto_complete_browser_close';
   timestamp: string;
   duration_seconds?: number;
+  /** paste_attempt only: length of the blocked text. The text itself is never stored. */
+  chars?: number;
+  /** paste_attempt only: answer input the paste targeted ('subjective' | 'coding'). */
+  input_kind?: string;
   /** Active question when the event occurred (forward-looking; older events omit these). */
   question_id?: string;
   /** 1-based index for display (e.g. Q3). */

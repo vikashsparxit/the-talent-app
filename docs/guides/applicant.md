@@ -49,6 +49,7 @@ When assigned an assessment:
 3. **Consent** — exam integrity and proctoring terms shown before start.
 4. Timed sections; auto-submit on expiry.
 5. Tab-switch monitoring with in-exam warnings.
+6. Pasting is disabled in written and code answers — type your answer. Paste attempts are recorded for the reviewer (not the pasted text).
 
 Results are reviewed by recruiters/HR — you typically do not see detailed scoring in portal.
 

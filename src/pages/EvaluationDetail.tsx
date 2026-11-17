@@ -867,7 +867,17 @@ export default function EvaluationDetail() {
                   <div className="text-sm space-y-1">
                     <p>Tab switches: <span className="font-medium">{integrityStats.tabSwitchCount}</span></p>
                     <p>Time away: <span className="font-medium">{formatSecondsAway(integrityStats.totalSecondsAway)}</span></p>
+                    {integrityStats.pasteAttempts > 0 && (
+                      <p>
+                        Paste attempts (blocked): <span className="font-medium">{integrityStats.pasteAttempts}</span>
+                      </p>
+                    )}
                   </div>
+                  {integrityStats.pasteAttempts > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Signal for review only; pasting was blocked and the score is unaffected.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-green-600">
@@ -890,6 +900,8 @@ export default function EvaluationDetail() {
               <p className="text-sm text-muted-foreground">
                 {integrityStats.tabSwitchCount} tab switch{integrityStats.tabSwitchCount !== 1 ? 'es' : ''},{' '}
                 {formatSecondsAway(integrityStats.totalSecondsAway)} away,{' '}
+                {integrityStats.pasteAttempts > 0 &&
+                  `${integrityStats.pasteAttempts} blocked paste attempt${integrityStats.pasteAttempts !== 1 ? 's' : ''}, `}
                 {integrityStats.eventCount} total event{integrityStats.eventCount !== 1 ? 's' : ''}
               </p>
             </CardHeader>
@@ -910,6 +922,12 @@ export default function EvaluationDetail() {
                       <span>{format(new Date(event.timestamp), 'MMM d, yyyy HH:mm:ss')}</span>
                       {event.duration_seconds !== undefined && (
                         <span>Away for {formatSecondsAway(event.duration_seconds)}</span>
+                      )}
+                      {event.type === 'paste_attempt' && (
+                        <span>
+                          {event.input_kind === 'coding' ? 'Code answer' : event.input_kind === 'subjective' ? 'Written answer' : 'Answer'}
+                          {event.chars !== undefined && ` · ${event.chars} char${event.chars !== 1 ? 's' : ''}`}
+                        </span>
                       )}
                     </div>
                   </li>

@@ -13,7 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes.
+### Added
+- Assessment portal: pasting and text drag-and-drop are blocked in subjective
+  answers and the coding editor, with a short notice to the candidate. The
+  Google Drive link field is unchanged. Each attempt is recorded as a
+  `paste_attempt` integrity event (at most one per question every 3 seconds)
+  with the question and the pasted length, never the pasted text.
+- Reviewers see paste attempts on the evaluation integrity card and timeline,
+  in the Evaluations list, and in a new "Paste Attempts" CSV export column.
+  Attempts are a signal for review only and do not change the score. No
+  database migration or edge function change is required.
 
 ## [1.0.1] - 2026-11-17
 

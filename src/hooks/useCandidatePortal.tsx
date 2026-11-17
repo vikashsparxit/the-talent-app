@@ -396,6 +396,8 @@ export function useLogIntegrityEvent() {
         question_id?: string;
         question_index?: number;
         section_title?: string;
+        chars?: number;
+        input_kind?: string;
       };
       accessToken: string;
     }) => {
