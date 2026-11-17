@@ -1094,7 +1094,7 @@ export default function Candidates({ mode = 'pipeline', embedded = false }: Cand
       // No record for this interviewer — find the candidate's current stage and create one
       const { data: latestInterview } = await supabase
         .from('candidate_interviews')
-        .select('job_interview_stage_id, candidates(name), job_interview_stages(stage_name)')
+        .select('job_interview_stage_id, round, candidates(name), job_interview_stages(stage_name)')
         .eq('candidate_id', candidateId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -1110,6 +1110,7 @@ export default function Candidates({ mode = 'pipeline', embedded = false }: Cand
         .insert({
           candidate_id: candidateId,
           job_interview_stage_id: stageId,
+          round: latestInterview?.round ?? 1,
           interviewer_user_id: user.id,
           sort_order: 0,
         })

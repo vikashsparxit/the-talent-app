@@ -7,6 +7,7 @@ import {
   ASSESSMENT_TIERS,
   isNonTechAssessmentTier,
 } from '@/lib/assessment-tiers';
+import { FALLBACK_TIMEZONE } from '@/lib/dashboardPeriod';
 
 export interface CertTierEntry {
   tier: number;
@@ -453,6 +454,19 @@ export function useSsoSettings() {
   const { configValue, isLoading, update, updateAsync, isUpdating } = useSystemConfig('sso_settings');
   const sso = parseSsoSettings(configValue);
   return { sso, isLoading, update, updateAsync, isUpdating };
+}
+
+/** Deployment timezone from public._app_timezone() — the zone report and dashboard windows use. */
+export function useAppTimezone() {
+  return useQuery({
+    queryKey: ['app_timezone'],
+    staleTime: 60 * 60_000,
+    queryFn: async (): Promise<string> => {
+      const { data, error } = await supabase.rpc('_app_timezone');
+      if (error) throw error;
+      return data || FALLBACK_TIMEZONE;
+    },
+  });
 }
 
 export function useSystemConfig(configKey: string, options?: { enabled?: boolean }) {

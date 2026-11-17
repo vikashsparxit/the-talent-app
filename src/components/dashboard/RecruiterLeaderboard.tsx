@@ -5,26 +5,29 @@ import { SegmentedProgress } from '@/components/ui/segmented-progress';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecruiterPerformance } from '@/hooks/useRecruiterPerformance';
-import { format, subDays } from 'date-fns';
+import { useAppTimezone } from '@/hooks/useSystemConfig';
+import { FALLBACK_TIMEZONE, reportDateRange } from '@/lib/dashboardPeriod';
 
 interface Props {
   period: 'week' | 'month';
 }
 
 export function RecruiterLeaderboard({ period }: Props) {
-  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-  const start = useMemo(
-    () => format(subDays(new Date(), period === 'week' ? 6 : 29), 'yyyy-MM-dd'),
-    [period],
+  // Same window as the dashboard's "Hires this week/month" card.
+  const { data: appTimezone, isError: appTimezoneError } = useAppTimezone();
+  const timezone = appTimezone ?? (appTimezoneError ? FALLBACK_TIMEZONE : null);
+  const { start, end } = useMemo(
+    () => (timezone ? reportDateRange(period === 'week' ? 'week' : '30', new Date(), timezone) : { start: '', end: '' }),
+    [period, timezone],
   );
 
-  const { data: stats = [], isLoading } = useRecruiterPerformance(start, today);
+  const { data: stats = [], isLoading } = useRecruiterPerformance(start, end);
   const top5 = stats.slice(0, 5);
 
   return (
     <SectionCard
       title="Recruiter performance"
-      description={`Hires from sourced candidates, last ${period === 'week' ? '7' : '30'} days`}
+      description={period === 'week' ? 'Hires this week' : 'Hires, last 30 days'}
       actions={
         <Button variant="ghost" size="sm" asChild className="h-8 px-2 text-muted-foreground">
           <Link to="/reports">Full report</Link>

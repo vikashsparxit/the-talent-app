@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { computeReopenTarget } from '@/lib/pipelineReopen';
 
 export interface InterviewStageTemplate {
   id: string;
@@ -69,6 +70,7 @@ export interface CandidateInterview {
   advanced_at?: string;
   interview_notes?: string | null;
   enrolled_at?: string | null;
+  round?: number;
   created_at: string;
   updated_at: string;
   // Joined
@@ -357,25 +359,26 @@ export function useCandidateInterviews(jobId?: string) {
       if (!jobId) throw new Error('No job selected');
       const { data: stages, error: stagesErr } = await supabase
         .from('job_interview_stages')
-        .select('id')
+        .select('id, order_index')
         .eq('job_id', jobId)
         .order('order_index');
       if (stagesErr) throw stagesErr;
       if (!stages?.length) throw new Error('No stages found for this job');
 
-      const stageIds = stages.map((s: { id: string }) => s.id);
-      const { data: existing } = await supabase
+      const { data: existing, error: existingErr } = await supabase
         .from('candidate_interviews')
-        .select('round')
+        .select('id, job_interview_stage_id, verdict, round, removed_from_pipeline_at')
         .eq('candidate_id', candidateId)
-        .in('job_interview_stage_id', stageIds)
-        .order('round' as any, { ascending: false })
-        .limit(1);
-      const newRound = ((existing?.[0] as { round?: number } | undefined)?.round ?? 1) + 1;
+        .in('job_interview_stage_id', stages.map(s => s.id));
+      if (existingErr) throw existingErr;
 
+      const target = computeReopenTarget(stages, existing ?? []);
+      if (!target) throw new Error('No interview history found for this candidate');
+
+      // One row at the stage they stopped at — no verdict, no advanced_at/by.
       const { error: insertErr } = await supabase
         .from('candidate_interviews')
-        .insert(stages.map((s: { id: string }) => ({ candidate_id: candidateId, job_interview_stage_id: s.id, round: newRound } as any)));
+        .insert({ candidate_id: candidateId, job_interview_stage_id: target.stageId, round: target.round });
       if (insertErr) throw insertErr;
 
       const { error: updateErr } = await supabase

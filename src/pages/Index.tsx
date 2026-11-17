@@ -13,6 +13,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useStaffHeaderConfig } from '@/contexts/StaffHeaderContext';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
+import { formatPeriodStartHint } from '@/lib/dashboardPeriod';
 
 const RecruiterLeaderboard = lazy(() =>
   import('@/components/dashboard/RecruiterLeaderboard').then(m => ({ default: m.RecruiterLeaderboard })),
@@ -81,7 +84,7 @@ const Index = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
-  const { data: metrics, isLoading } = useDashboardMetrics(period);
+  const { data: metrics, isLoading, isError: metricsError, refetch: refetchMetrics } = useDashboardMetrics(period);
   const { isInterviewer, isAdminOrHR, isRecruiter } = useAuth();
   const canAddCandidate = isAdminOrHR || isRecruiter;
   const enter = useFirstVisitEntrance();
@@ -135,6 +138,14 @@ const Index = () => {
           >
             {isLoading ? (
               [...Array(4)].map((_, i) => <Skeleton key={i} className="h-36 sm:h-44 rounded-xl" />)
+            ) : metricsError ? (
+              <div role="alert" className="col-span-full flex items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Could not load dashboard metrics.</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => refetchMetrics()}>Retry</Button>
+              </div>
             ) : (
               <>
                 <StatCard
@@ -167,7 +178,7 @@ const Index = () => {
                 <StatCard
                   label={`Hires this ${periodLabel}`}
                   value={(metrics?.hiresThisPeriod ?? 0).toLocaleString()}
-                  hint="Candidates selected"
+                  hint={formatPeriodStartHint(metrics?.periodStart, metrics?.timezone) ?? 'Candidates hired'}
                 />
               </>
             )}
