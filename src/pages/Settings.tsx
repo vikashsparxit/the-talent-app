@@ -40,6 +40,8 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { SecuritySettingsTab } from '@/components/settings/SecuritySettingsTab';
 import { resolveSettingsTab } from '@/lib/settingsTabs';
 import { ComplianceSettingsTab } from '@/components/settings/ComplianceSettingsTab';
+import { MediaConsentSettings } from '@/components/settings/MediaConsentSettings';
+import { RecordingRetentionSettings } from '@/components/settings/RecordingRetentionSettings';
 import { cn } from '@/lib/utils';
 import { normalizeApplicantEmail } from '@/lib/applicantApplicationEligibility';
 import { extensions } from '@/lib/extensions';
@@ -1966,9 +1968,10 @@ function AssessmentsTab() {
 
   return (
     <Tabs defaultValue="configure" className="max-w-4xl">
-      <TabsList className="grid w-full grid-cols-2 mb-6 max-w-md">
+      <TabsList className="grid w-full grid-cols-3 mb-6 max-w-lg">
         <TabsTrigger value="configure">Configure</TabsTrigger>
         <TabsTrigger value="ai-generation">AI generation</TabsTrigger>
+        <TabsTrigger value="recording-consent">Recording consent</TabsTrigger>
       </TabsList>
 
       <TabsContent value="configure" className="space-y-6 mt-0">
@@ -2266,6 +2269,12 @@ function AssessmentsTab() {
         >
           {genUpdating ? 'Saving...' : 'Save AI Generation Settings'}
         </Button>
+      </TabsContent>
+
+      <TabsContent value="recording-consent" className="mt-0 space-y-8">
+        <RecordingRetentionSettings />
+        <div className="border-t" />
+        <MediaConsentSettings />
       </TabsContent>
     </Tabs>
   );
@@ -3597,7 +3606,7 @@ export default function Settings() {
                 <CardHeader>
                   <CardTitle>Assessments</CardTitle>
                   <CardDescription>
-                    Org-wide defaults for job assessments and AI generation profiles.
+                    Org-wide defaults for job assessments, AI generation profiles and the recording consent candidates see.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

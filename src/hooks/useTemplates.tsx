@@ -16,7 +16,7 @@ export interface TemplateData {
     order_index: number;
     weightage: number;
     questions: Array<{
-      type: 'mcq' | 'coding' | 'subjective' | 'file_upload';
+      type: Question['type'];
       question_text: string;
       marks: number;
       order_index: number;
@@ -28,6 +28,7 @@ export interface TemplateData {
       subjective_max_words?: number | null;
       subjective_rubric?: string | null;
       file_config?: unknown;
+      spoken_config?: unknown;
     }>;
   }>;
 }
@@ -163,6 +164,7 @@ export function assessmentToTemplateData(assessment: AssessmentWithDetails): Tem
         subjective_max_words: q.subjective_max_words,
         subjective_rubric: q.subjective_rubric,
         file_config: q.file_config ?? null,
+        spoken_config: q.spoken_config ?? null,
       })),
     })),
   };

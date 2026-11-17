@@ -29,7 +29,9 @@ import {
 } from '@/lib/assessmentFileUpload';
 import { safeExternalUrl } from '@/lib/utils';
 import { examEndsAt, isAttemptOverError } from '@/lib/assessmentGrading';
-import type { IntegrityEvent } from '@/types/database';
+import { usePasteGuard, type PasteAttempt } from '@/hooks/usePasteGuard';
+import type { IntegrityEvent, MediaIntegrityEventType } from '@/types/database';
+import { isSpokenAnswered } from '@/lib/spokenAnswer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,9 +39,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -48,8 +50,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, Eye, CheckCircle2, Upload, Link2, X, FileText, Loader2 } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, Eye, CheckCircle2, Upload, Link2, X, FileText, Loader2, RefreshCw } from 'lucide-react';
 import { CodeEditor } from './CodeEditor';
+import { SpokenAnswer } from './SpokenAnswer';
+import { ExamMediaGate } from './ExamMediaGate';
+import { RecordingIndicator } from './RecordingIndicator';
+import { useExamMedia } from '@/hooks/useExamMedia';
+import {
+  AUTO_SUBMIT_FLUSH_TIMEOUT_MS,
+  SUBMIT_FLUSH_TIMEOUT_MS,
+  useWebcamRecording,
+} from '@/hooks/useWebcamRecording';
 import { AssessmentPortalHeader } from '@/components/CompanyLogo';
 import type { Json } from '@/integrations/supabase/types';
 import type { ExecutionResult } from '@/hooks/useCodeExecution';
@@ -88,6 +99,7 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isStarted, setIsStarted] = useState(assessmentInfo.status === 'in_progress');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize responses from saved data
   useEffect(() => {
@@ -230,6 +242,26 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isStarted, assessmentInfo.id, accessToken, toast]);
 
+  // Blocked pastes are logged for the reviewer only; no escalation warnings, no effect on score.
+  const handlePasteAttempt = useCallback(
+    ({ inputKind, chars }: PasteAttempt) => {
+      const pasteEvent: IntegrityEvent = {
+        type: 'paste_attempt',
+        timestamp: new Date().toISOString(),
+        ...(currentQuestionRef.current ?? {}),
+        input_kind: inputKind,
+        ...(chars !== undefined ? { chars } : {}),
+      };
+      setIntegrityLog((prev) => [...prev, pasteEvent]);
+      logIntegrityRef.current.mutate({
+        candidateAssessmentId: assessmentInfo.id,
+        event: pasteEvent,
+        accessToken,
+      });
+    },
+    [assessmentInfo.id, accessToken]
+  );
+
   // Live counter for current away session
   useEffect(() => {
     if (!isStarted || hiddenSince === null) return;
@@ -315,6 +347,8 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
   }, [isStarted, sendAutoCompleteBeacon]);
 
   const handleStart = async () => {
+    // The server starts the clock, so only once consent and camera/mic are in place.
+    if (!media.ready) return;
     if (assessmentInfo.status === 'invited') {
       await startAssessment.mutateAsync({
         candidateAssessmentId: assessmentInfo.id,
@@ -351,18 +385,64 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
     if (blocking) throw blocking.reason;
   }, [responses, assessmentInfo.id, saveResponse, accessToken]);
 
+  // Spoken questions with a take recorded but not saved (reported by SpokenAnswer).
+  const [unsavedSpoken, setUnsavedSpoken] = useState<ReadonlySet<string>>(() => new Set());
+  const handleSpokenUnsavedChange = useCallback((questionId: string, unsaved: boolean) => {
+    setUnsavedSpoken((prev) => {
+      if (prev.has(questionId) === unsaved) return prev;
+      const next = new Set(prev);
+      if (unsaved) next.add(questionId);
+      else next.delete(questionId);
+      return next;
+    });
+  }, []);
+  const unsavedSpokenNumbers = allQuestions.flatMap((q, i) => (unsavedSpoken.has(q.id) ? [i + 1] : []));
+
+  // Submit guard: recording segments still waiting to upload are flushed first;
+  // segments not uploaded (waiting or given up) trigger the warning.
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitCheck, setSubmitCheck] = useState<'idle' | 'flushing' | 'incomplete' | 'submitting'>('idle');
+  const [pendingAfterFlush, setPendingAfterFlush] = useState(0);
+  const [autoSubmitFlushing, setAutoSubmitFlushing] = useState(false);
+  const submitCheckRunRef = useRef(0);
+
+  // A signal for reviewers only (like other media events): never a score, stage or hiring decision.
+  const logIncompleteMedia = async (submittedBy: 'candidate' | 'timer', pendingSegments: number) => {
+    if (pendingSegments === 0 && unsavedSpokenNumbers.length === 0) return;
+    const event: IntegrityEvent = {
+      type: 'media_incomplete_at_submit',
+      timestamp: new Date().toISOString(),
+      submitted_by: submittedBy,
+      pending_segments: pendingSegments,
+      unsaved_spoken_questions: unsavedSpokenNumbers,
+    };
+    setIntegrityLog((prev) => [...prev, event]);
+    // Logged before the submit: the attempt refuses events once it is completed.
+    await logIntegrity.mutateAsync({ candidateAssessmentId: assessmentInfo.id, event, accessToken });
+  };
+
   const handleAutoSubmit = async () => {
     if (isSubmittedRef.current) return;
     isSubmittedRef.current = true;
+    setIsSubmitting(true);
+    setSubmitDialogOpen(false);
     try {
       await saveAllResponses();
+      // Best effort and bounded: the server's grace after time up is longer than this wait.
+      setAutoSubmitFlushing(true);
+      const pendingSegments = await webcam.flush(AUTO_SUBMIT_FLUSH_TIMEOUT_MS);
+      setAutoSubmitFlushing(false);
+      await logIncompleteMedia('timer', pendingSegments);
       await submitAssessment.mutateAsync({
         candidateAssessmentId: assessmentInfo.id,
         accessToken,
       });
       setIsSubmitted(true);
+      void webcam.finish();
     } catch (err) {
       isSubmittedRef.current = false;
+      setIsSubmitting(false);
+      setAutoSubmitFlushing(false);
       console.error('Auto-submit failed:', err);
       // Fallback: use sendBeacon as last resort
       sendAutoCompleteBeacon();
@@ -370,7 +450,10 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
   };
 
   const handleSubmit = async () => {
+    if (isSubmittedRef.current) return;
     isSubmittedRef.current = true;
+    setSubmitDialogOpen(false);
+    setIsSubmitting(true);
     try {
       await saveAllResponses();
       await submitAssessment.mutateAsync({
@@ -378,8 +461,10 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
         accessToken,
       });
       setIsSubmitted(true);
+      void webcam.finish();
     } catch (err) {
       isSubmittedRef.current = false;
+      setIsSubmitting(false);
       const message = err instanceof Error ? err.message : 'Failed to submit assessment';
       toast({
         variant: 'destructive',
@@ -389,17 +474,84 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
     }
   };
 
+  // "Submit Now" and "Try again": upload what is waiting, then submit, or say what is not saved.
+  const flushThenSubmit = async () => {
+    const run = ++submitCheckRunRef.current;
+    setSubmitCheck('flushing');
+    const pendingSegments = await webcam.flush(SUBMIT_FLUSH_TIMEOUT_MS);
+    if (run !== submitCheckRunRef.current) return; // dialog closed meanwhile
+    setPendingAfterFlush(pendingSegments);
+    if (pendingSegments > 0 || unsavedSpokenNumbers.length > 0) {
+      setSubmitCheck('incomplete');
+      return;
+    }
+    setSubmitCheck('idle');
+    await handleSubmit();
+  };
+
+  // The candidate's choice after the warning: submitted as is, with a note for the reviewer.
+  const submitAnyway = async () => {
+    const run = ++submitCheckRunRef.current;
+    setSubmitCheck('submitting');
+    await logIncompleteMedia('candidate', pendingAfterFlush);
+    if (run !== submitCheckRunRef.current) return;
+    setSubmitCheck('idle');
+    await handleSubmit();
+  };
+
+  const handleSubmitDialogOpenChange = (open: boolean) => {
+    if (!open && submitCheck === 'submitting') return;
+    submitCheckRunRef.current++; // a flush still running no longer submits
+    setSubmitCheck('idle');
+    setSubmitDialogOpen(open);
+  };
+
+  const goToQuestion = (questionNumber: number) => {
+    setCurrentIndex(questionNumber - 1);
+    handleSubmitDialogOpenChange(false);
+  };
+
   const handleResponseChange = (questionId: string, value: Json) => {
     setResponses((prev) => ({ ...prev, [questionId]: value }));
   };
 
+  // Camera/mic/recording problems are logged as signals for reviewers only.
+  const handleMediaIntegrityEvent = useCallback(
+    (type: MediaIntegrityEventType) => {
+      const event: IntegrityEvent = {
+        type,
+        timestamp: new Date().toISOString(),
+        ...(currentQuestionRef.current ?? {}),
+      };
+      setIntegrityLog((prev) => [...prev, event]);
+      logIntegrityRef.current.mutate({ candidateAssessmentId: assessmentInfo.id, event, accessToken });
+    },
+    [assessmentInfo.id, accessToken],
+  );
+
+  // Recording is always on: consent, then camera + microphone, before answering.
+  const mediaAuth = useMemo(
+    () => ({ accessToken, candidateAssessmentId: assessmentInfo.id }),
+    [accessToken, assessmentInfo.id],
+  );
+  const media = useExamMedia({ auth: mediaAuth, started: isStarted, onSignal: handleMediaIntegrityEvent });
+  // The webcam records the whole attempt; it pauses while the gate is up or a submit is in flight.
+  const webcam = useWebcamRecording({
+    auth: mediaAuth,
+    stream: media.stream,
+    active: isStarted && !isSubmitted && !isSubmitting && media.ready,
+    onSignal: handleMediaIntegrityEvent,
+  });
+
   const currentQuestion = allQuestions[currentIndex];
-  const answeredCount = Object.keys(responses).filter((qId) => {
-    const q = allQuestions.find((aq) => aq.id === qId);
-    const val = responses[qId];
-    if (q?.type === 'file_upload') return isFileUploadAnswered(val);
+  const isAnswered = (type: string | undefined, val: Json | undefined) => {
+    if (type === 'file_upload') return isFileUploadAnswered(val);
+    if (type === 'spoken') return isSpokenAnswered(val);
     return val !== null && val !== '' && val !== undefined;
-  }).length;
+  };
+  const answeredCount = Object.keys(responses).filter((qId) =>
+    isAnswered(allQuestions.find((aq) => aq.id === qId)?.type, responses[qId]),
+  ).length;
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -416,18 +568,25 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
       <div className="min-h-screen bg-background flex flex-col">
         <AssessmentPortalHeader homeHref={homeHref} />
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
-            <CardContent className="pt-6 text-center">
-              <Clock className="h-12 w-12 mx-auto text-primary mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Ready to Begin?</h2>
-              <p className="text-muted-foreground mb-6">
-                You have {assessmentInfo.assessment.duration_minutes} minutes to complete {allQuestions.length} questions.
-              </p>
-              <Button onClick={handleStart} disabled={startAssessment.isPending} className="w-full">
-                {startAssessment.isPending ? 'Starting...' : 'Begin Assessment'}
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="w-full max-w-xl">
+            <ExamMediaGate media={media}>
+              <Card className="max-w-md w-full mx-auto">
+                <CardContent className="pt-6 text-center">
+                  <Clock className="h-12 w-12 mx-auto text-primary mb-4" />
+                  <h2 className="text-xl font-semibold mb-2">Ready to Begin?</h2>
+                  <p className="text-muted-foreground mb-2">
+                    You have {assessmentInfo.assessment.duration_minutes} minutes to complete {allQuestions.length} questions.
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Your camera and microphone are recorded until you submit. Keep them on.
+                  </p>
+                  <Button onClick={handleStart} disabled={startAssessment.isPending || !media.ready} className="w-full">
+                    {startAssessment.isPending ? 'Starting...' : 'Begin Assessment'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </ExamMediaGate>
+          </div>
         </div>
       </div>
     );
@@ -448,6 +607,12 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
               <p className="text-sm text-muted-foreground">
                 Your responses have been submitted. The hiring team will review your assessment and follow up.
               </p>
+              {webcam.pending > 0 && (
+                <p className="text-sm text-muted-foreground mt-3 flex items-center justify-center gap-2" role="status">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading the rest of your recording. Please keep this page open for a moment.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -486,9 +651,9 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
               </span>
             </div>
 
-            <AlertDialog>
+            <AlertDialog open={submitDialogOpen} onOpenChange={handleSubmitDialogOpenChange}>
               <AlertDialogTrigger asChild>
-                <Button size="sm" disabled={submitAssessment.isPending}>
+                <Button size="sm" disabled={submitAssessment.isPending || isSubmitting}>
                   <Send className="h-4 w-4 mr-2" />
                   Submit
                 </Button>
@@ -506,9 +671,69 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
                     )}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                {submitCheck === 'flushing' && (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading your recording… Please keep this page open.
+                  </p>
+                )}
+                {submitCheck === 'incomplete' && (
+                  <Alert variant="destructive" role="alert">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Not everything has been saved</AlertTitle>
+                    <AlertDescription className="space-y-2">
+                      {pendingAfterFlush > 0 && (
+                        <p>
+                          Your recording is incomplete ({pendingAfterFlush} part
+                          {pendingAfterFlush !== 1 ? 's' : ''} not saved). Check your connection and try again.
+                        </p>
+                      )}
+                      {unsavedSpokenNumbers.map((n) => (
+                        <p key={n}>
+                          Your spoken answer for question {n} hasn't been saved.{' '}
+                          <Button type="button" variant="link" className="h-auto p-0" onClick={() => goToQuestion(n)}>
+                            Go to question {n}
+                          </Button>
+                        </p>
+                      ))}
+                      <p>If you submit anyway, anything not uploaded may be lost.</p>
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Continue Test</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSubmit}>Submit Now</AlertDialogAction>
+                  <AlertDialogCancel disabled={submitCheck === 'submitting'}>Continue Test</AlertDialogCancel>
+                  {submitCheck === 'incomplete' || submitCheck === 'submitting' ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void flushThenSubmit()}
+                        disabled={submitCheck === 'submitting'}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Try again
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => void submitAnyway()}
+                        disabled={submitCheck === 'submitting'}
+                      >
+                        Submit anyway
+                      </Button>
+                    </>
+                  ) : (
+                    <Button type="button" onClick={() => void flushThenSubmit()} disabled={submitCheck === 'flushing'}>
+                      {submitCheck === 'flushing' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading recording…
+                        </>
+                      ) : (
+                        'Submit Now'
+                      )}
+                    </Button>
+                  )}
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -519,6 +744,12 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
             Integrity events are recorded and shared with the hiring team.
           </p>
+          {autoSubmitFlushing && (
+            <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1.5" role="status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+              Time is up. Uploading your recording before submitting…
+            </p>
+          )}
         </div>
       </header>
 
@@ -528,10 +759,7 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
           <h3 className="text-sm font-medium mb-3">Questions</h3>
           <div className="grid grid-cols-5 gap-2">
             {allQuestions.map((q, idx) => {
-              const isAnswered =
-                q.type === 'file_upload'
-                  ? isFileUploadAnswered(responses[q.id])
-                  : responses[q.id] !== undefined && responses[q.id] !== null && responses[q.id] !== '';
+              const answered = isAnswered(q.type, responses[q.id]);
               const isCurrent = idx === currentIndex;
               return (
                 <button
@@ -540,7 +768,7 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
                   className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
                     isCurrent
                       ? 'bg-primary text-primary-foreground'
-                      : isAnswered
+                      : answered
                       ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700'
                       : 'bg-background border hover:bg-muted'
                   }`}
@@ -578,38 +806,45 @@ export default function ExamInterface({ assessmentInfo, accessToken, consentSour
 
         {/* Question Area */}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {currentQuestion && (
-            <QuestionDisplay
-              question={currentQuestion}
-              questionNumber={currentIndex + 1}
-              totalQuestions={allQuestions.length}
-              response={responses[currentQuestion.id]}
-              onResponseChange={(value) => handleResponseChange(currentQuestion.id, value)}
-              accessToken={accessToken}
-              candidateAssessmentId={assessmentInfo.id}
-            />
-          )}
+          <ExamMediaGate media={media} showPreview={false}>
+            {currentQuestion && (
+              <QuestionDisplay
+                question={currentQuestion}
+                questionNumber={currentIndex + 1}
+                totalQuestions={allQuestions.length}
+                response={responses[currentQuestion.id]}
+                onResponseChange={(value) => handleResponseChange(currentQuestion.id, value)}
+                accessToken={accessToken}
+                candidateAssessmentId={assessmentInfo.id}
+                onMediaIntegrityEvent={handleMediaIntegrityEvent}
+                mediaStream={media.stream}
+                onPasteAttempt={handlePasteAttempt}
+                onSpokenUnsavedChange={(unsaved) => handleSpokenUnsavedChange(currentQuestion.id, unsaved)}
+              />
+            )}
 
-          {/* Navigation */}
-          <div className="flex justify-between mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-              disabled={currentIndex === 0}
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous
-            </Button>
-            <Button
-              onClick={() => setCurrentIndex((prev) => Math.min(allQuestions.length - 1, prev + 1))}
-              disabled={currentIndex === allQuestions.length - 1}
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-          </div>
+            {/* Navigation */}
+            <div className="flex justify-between mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Previous
+              </Button>
+              <Button
+                onClick={() => setCurrentIndex((prev) => Math.min(allQuestions.length - 1, prev + 1))}
+                disabled={currentIndex === allQuestions.length - 1}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </ExamMediaGate>
         </main>
       </div>
+      <RecordingIndicator stream={media.stream} phase={webcam.phase} pending={webcam.pending} />
     </div>
   );
 }
@@ -623,9 +858,15 @@ interface QuestionDisplayProps {
   onExecutionResult?: (result: ExecutionResult) => void;
   accessToken?: string;
   candidateAssessmentId: string;
+  onMediaIntegrityEvent: (type: MediaIntegrityEventType) => void;
+  /** The exam's camera + microphone stream; spoken answers record its audio instead of opening the mic again. */
+  mediaStream: MediaStream | null;
+  onPasteAttempt?: (attempt: PasteAttempt) => void;
+  /** Spoken questions: whether a take is recorded but not saved. */
+  onSpokenUnsavedChange?: (unsaved: boolean) => void;
 }
 
-function QuestionDisplay({
+export function QuestionDisplay({
   question,
   questionNumber,
   totalQuestions,
@@ -634,8 +875,17 @@ function QuestionDisplay({
   onExecutionResult,
   accessToken,
   candidateAssessmentId,
+  onMediaIntegrityEvent,
+  mediaStream,
+  onPasteAttempt,
+  onSpokenUnsavedChange,
 }: QuestionDisplayProps) {
   const { toast } = useToast();
+  const subjectivePasteGuard = usePasteGuard({
+    inputKind: 'subjective',
+    throttleKey: question.id,
+    onAttempt: onPasteAttempt,
+  });
   const createUpload = useCreateAssessmentFileUpload();
   const [linkInput, setLinkInput] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -647,6 +897,7 @@ function QuestionDisplay({
       case 'coding': return 'Coding';
       case 'subjective': return 'Subjective';
       case 'file_upload': return 'File Upload';
+      case 'spoken': return 'Spoken answer';
       default: return type;
     }
   };
@@ -801,16 +1052,18 @@ function QuestionDisplay({
         {question.type === 'subjective' && (
           <div className="space-y-2">
             <Textarea
+              {...subjectivePasteGuard}
               value={String(response ?? '')}
               onChange={(e) => onResponseChange(e.target.value)}
               placeholder="Type your answer here..."
               className="min-h-[200px]"
             />
-            {question.subjective_max_words && (
-              <p className="text-xs text-muted-foreground text-right">
-                Max words: {question.subjective_max_words}
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-4 text-xs text-muted-foreground">
+              <p>Pasting is disabled. Paste attempts are recorded for the reviewer.</p>
+              {question.subjective_max_words && (
+                <p className="shrink-0">Max words: {question.subjective_max_words}</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -823,6 +1076,21 @@ function QuestionDisplay({
             accessToken={accessToken}
             onCodeChange={handleCodeChange}
             onExecutionResult={handleExecutionResult}
+            onPasteAttempt={onPasteAttempt}
+          />
+        )}
+
+        {question.type === 'spoken' && accessToken && (
+          <SpokenAnswer
+            key={question.id}
+            question={question}
+            candidateAssessmentId={candidateAssessmentId}
+            accessToken={accessToken}
+            response={response}
+            onSaved={(saved) => onResponseChange(saved as unknown as Json)}
+            onIntegrityEvent={onMediaIntegrityEvent}
+            audioSource={mediaStream}
+            onUnsavedChange={onSpokenUnsavedChange}
           />
         )}
 

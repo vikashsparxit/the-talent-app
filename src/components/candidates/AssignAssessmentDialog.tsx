@@ -28,6 +28,7 @@ import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAssessments } from '@/hooks/useAssessments';
 import { useCandidateAssessments } from '@/hooks/useCandidates';
+import { assignmentBlockedMessage, decideAssessmentAssignment } from '@/lib/assessmentAssignment';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -70,19 +71,17 @@ export function AssignAssessmentDialog({
     }
   }, [open, defaultAssessmentId, deadlineDays]);
 
-  const assignedAssessmentIds = assignments
-    .filter((a) => a.candidate_id === candidate.id)
-    .map((a) => a.assessment_id);
-
   const availableAssessments = assessments.filter((a) => {
     if (a.status === 'active') return true;
     return defaultAssessmentId != null && a.id === defaultAssessmentId && a.status === 'draft';
   });
 
   const selectedAssessmentData = assessments.find((a) => a.id === selectedAssessment);
-  const alreadyAssigned = selectedAssessment
-    ? assignedAssessmentIds.includes(selectedAssessment)
-    : false;
+  const priorAttempts = selectedAssessment
+    ? assignments.filter((a) => a.candidate_id === candidate.id && a.assessment_id === selectedAssessment)
+    : [];
+  const reassignDecision = priorAttempts.length > 0 ? decideAssessmentAssignment(priorAttempts) : null;
+  const reassignBlocked = reassignDecision?.outcome === 'blocked';
 
   const handleAssign = async () => {
     if (!selectedAssessment) return;
@@ -238,9 +237,11 @@ export function AssignAssessmentDialog({
                   </SelectContent>
                 </Select>
               )}
-              {alreadyAssigned && (
+              {reassignDecision && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  This assessment was previously assigned — a new invitation will be created.
+                  {reassignDecision.outcome === 'blocked'
+                    ? assignmentBlockedMessage(reassignDecision.reason)
+                    : 'This assessment was previously assigned — a new invitation will be created. Earlier attempts and their results are kept.'}
                 </p>
               )}
             </div>
@@ -295,7 +296,7 @@ export function AssignAssessmentDialog({
               </Button>
               <Button
                 onClick={handleAssign}
-                disabled={!selectedAssessment || assignAssessment.isPending}
+                disabled={!selectedAssessment || reassignBlocked || assignAssessment.isPending}
               >
                 {assignAssessment.isPending ? 'Assigning...' : 'Assign & Generate Link'}
               </Button>

@@ -330,8 +330,9 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
 
 function normalizeQuestionType(raw: unknown): GeneratedQuestion["type"] {
   const t = String(raw ?? "mcq").toLowerCase().trim();
-  // file_upload is builder-only — never AI-generated; coerce to subjective if model invents it
+  // file_upload and spoken are builder-only — never AI-generated; coerce to subjective if model invents them
   if (t === "file_upload" || t === "file" || t === "upload") return "subjective";
+  if (t === "spoken" || t === "audio" || t === "voice" || t === "oral") return "subjective";
   if (t === "coding" || t === "code") return "coding";
   if (t === "subjective" || t === "text" || t === "essay") return "subjective";
   return "mcq";
@@ -954,7 +955,7 @@ STRICT OUTPUT REQUIREMENTS (must follow exactly):
 - Exactly ${sectionCount} sections with titles similar to: ${sectionTitles.join(", ")}
 - Exactly ${questionsPerSection} questions in EACH section (${totalQuestions} questions total)
 ${typeBreakdown}
-- Question type must be exactly "mcq", "coding", or "subjective" (lowercase). Never use "file_upload" (manual builder-only type).
+- Question type must be exactly "mcq", "coding", or "subjective" (lowercase). Never use "file_upload" or "spoken" (manual builder-only types).
 - MCQ: options [{ "id": "a"|"b"|"c"|"d", "text": string, "is_correct": boolean }] with exactly one is_correct=true
 - Coding: coding_language, coding_starter_code, coding_test_cases with at least 2 entries (is_hidden=false)
 - Subjective: subjective_max_words (default 500), subjective_rubric

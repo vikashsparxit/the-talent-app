@@ -49,6 +49,9 @@ When assigned an assessment:
 3. **Consent** — exam integrity and proctoring terms shown before start.
 4. Timed sections; auto-submit on expiry.
 5. Tab-switch monitoring with in-exam warnings.
+6. **Camera and microphone** — online assessments are recorded. Before you start you agree to the recording and allow camera and microphone access in your browser (computer or phone); you cannot start or continue without them, and if one stops during the test the questions are hidden until it is back (your time keeps running). A small **Recording** indicator shows while you answer. Recordings are only seen by the hiring team reviewing your application, nothing is decided automatically from them, and, where the company has turned on automatic deletion, they are deleted 90 days after the assessment unless you are hired. The consent text you see before the test says how long that company keeps them.
+7. **Spoken questions** — some questions are answered out loud. You need a working microphone and must allow microphone access in your browser (phone or computer). You may get a few seconds to prepare, the recording stops at the time limit, and you can listen back and, if the question allows more than one attempt, record again before saving.
+8. **No pasting** — pasting is disabled in written and code answers, so type your answer. Paste attempts are recorded for the reviewer (not the pasted text).
 
 Results are reviewed by recruiters/HR — you typically do not see detailed scoring in portal.
 

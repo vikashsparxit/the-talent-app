@@ -137,6 +137,163 @@ export type Database = {
         }
         Relationships: []
       }
+      assessment_media_consents: {
+        Row: {
+          candidate_assessment_id: string
+          consent_version: string
+          consented_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_assessment_id: string
+          consent_version: string
+          consented_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_assessment_id?: string
+          consent_version?: string
+          consented_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_media_consents_candidate_assessment_id_fkey"
+            columns: ["candidate_assessment_id"]
+            isOneToOne: true
+            referencedRelation: "candidate_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_recording_chunks: {
+        Row: {
+          bytes: number
+          captured_at: string | null
+          duration_ms: number | null
+          id: string
+          object_key: string
+          recording_id: string
+          seq: number
+          uploaded_at: string
+        }
+        Insert: {
+          bytes?: number
+          captured_at?: string | null
+          duration_ms?: number | null
+          id?: string
+          object_key: string
+          recording_id: string
+          seq: number
+          uploaded_at?: string
+        }
+        Update: {
+          bytes?: number
+          captured_at?: string | null
+          duration_ms?: number | null
+          id?: string
+          object_key?: string
+          recording_id?: string
+          seq?: number
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_recording_chunks_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_recordings: {
+        Row: {
+          bytes: number
+          candidate_assessment_id: string
+          chunk_count: number
+          consent_at: string | null
+          consent_version: string | null
+          created_at: string
+          deleted_at: string | null
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          kind: string
+          last_chunk_at: string | null
+          mime: string
+          question_id: string | null
+          retention_until: string | null
+          started_at: string
+          status: string
+          storage_prefix: string
+          storage_provider: string
+          updated_at: string
+        }
+        Insert: {
+          bytes?: number
+          candidate_assessment_id: string
+          chunk_count?: number
+          consent_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          kind: string
+          last_chunk_at?: string | null
+          mime: string
+          question_id?: string | null
+          retention_until?: string | null
+          started_at?: string
+          status?: string
+          storage_prefix: string
+          storage_provider?: string
+          updated_at?: string
+        }
+        Update: {
+          bytes?: number
+          candidate_assessment_id?: string
+          chunk_count?: number
+          consent_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          kind?: string
+          last_chunk_at?: string | null
+          mime?: string
+          question_id?: string | null
+          retention_until?: string | null
+          started_at?: string
+          status?: string
+          storage_prefix?: string
+          storage_provider?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_recordings_candidate_assessment_id_fkey"
+            columns: ["candidate_assessment_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_recordings_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_sections: {
         Row: {
           assessment_id: string
@@ -1717,6 +1874,7 @@ export type Database = {
           order_index: number
           question_text: string
           section_id: string
+          spoken_config: Json | null
           subjective_max_words: number | null
           subjective_rubric: string | null
           type: Database["public"]["Enums"]["question_type"]
@@ -1735,6 +1893,7 @@ export type Database = {
           order_index?: number
           question_text: string
           section_id: string
+          spoken_config?: Json | null
           subjective_max_words?: number | null
           subjective_rubric?: string | null
           type: Database["public"]["Enums"]["question_type"]
@@ -1753,6 +1912,7 @@ export type Database = {
           order_index?: number
           question_text?: string
           section_id?: string
+          spoken_config?: Json | null
           subjective_max_words?: number | null
           subjective_rubric?: string | null
           type?: Database["public"]["Enums"]["question_type"]
@@ -1994,6 +2154,7 @@ export type Database = {
         Args: { p_candidate_id: string }
         Returns: undefined
       }
+      assessment_recording_retention_enabled: { Args: never; Returns: boolean }
       audit_log_record: {
         Args: {
           _action: string
@@ -2024,10 +2185,15 @@ export type Database = {
         Args: { _candidate_id: string; _job_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_assessment_media: {
+        Args: { _candidate_assessment_id: string; _user_id: string }
+        Returns: boolean
+      }
       cancel_interview: {
         Args: { p_id: string; p_note?: string; p_reason: string }
         Returns: undefined
       }
+      count_expired_assessment_recordings: { Args: never; Returns: number }
       decline_pending_candidate: {
         Args: { p_candidate_id: string; p_reason?: string }
         Returns: undefined
@@ -2288,7 +2454,7 @@ export type Database = {
         | "contract"
         | "internship"
         | "freelance"
-      question_type: "mcq" | "coding" | "subjective" | "file_upload"
+      question_type: "mcq" | "coding" | "subjective" | "file_upload" | "spoken"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2436,7 +2602,7 @@ export const Constants = {
         "internship",
         "freelance",
       ],
-      question_type: ["mcq", "coding", "subjective", "file_upload"],
+      question_type: ["mcq", "coding", "subjective", "file_upload", "spoken"],
     },
   },
 } as const

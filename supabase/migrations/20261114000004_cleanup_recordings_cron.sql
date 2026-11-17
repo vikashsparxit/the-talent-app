@@ -1,0 +1,58 @@
+-- Daily retention cleanup of assessment recordings (cleanup-recordings edge function).
+--
+-- NOT ENABLED. Everything below is commented out on purpose: an operator
+-- enables it by hand once the steps below are done. Never applied automatically.
+--
+-- DO NOT ENABLE until the cleanup-recordings function that checks the admin
+-- setting system_config.assessment_recording_retention.enabled
+-- (20261117000002_assessment_recording_retention.sql) is deployed. The older
+-- function has no flag check: with this schedule it would delete every
+-- expired recording on its first run. With the new function, the job deletes
+-- nothing until an admin turns on "Delete assessment recordings after 90 days"
+-- in Settings -> Assessments -> Recording consent.
+--
+-- What the job does: once a day it calls cleanup-recordings with
+-- {"dry_run": false, "limit": 200}. While the admin setting is on, that deletes the R2 files of recordings
+-- whose attempt was completed (or started, if never completed) more than 90
+-- days ago, except while the candidate is hired (candidates.hired_at set),
+-- and marks the rows status 'deleted' with deleted_at (metadata is kept).
+-- It never changes attempts, scores or stages.
+--
+-- Before enabling:
+--   1. Apply 20261114000002_assessment_media.sql and
+--      20261114000003_assessment_recording_chunk_timing.sql.
+--   2. Apply 20261117000002_assessment_recording_retention.sql and deploy
+--      the cleanup-recordings version that checks the admin setting, with
+--      the R2_* env vars (it returns 503 "recording storage not configured"
+--      without them). Its report must include "retention_enabled".
+--   3. Call it by hand as a dry run (the default) with the service role key
+--      and check the report:  POST /functions/v1/cleanup-recordings  {}
+--   4. public.invoke_edge_function(text, jsonb) must exist
+--      (20261011000003_assessment_portal_hardening.sql) and the
+--      internal_webhook_config 'edge_functions' row must be enabled
+--      (20261010000001_edge_function_cron_config.sql); the job posts with
+--      that row's bearer token (the service role key), which the function requires.
+--
+-- To enable, uncomment and run the block below (outside a transaction, like
+-- the other cron schedules, so a missing pg_cron only raises a notice).
+-- 02:30 UTC daily, a quiet hour in several regions; change it to suit yours.
+--
+-- DO $$
+-- BEGIN
+--   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+--     PERFORM cron.schedule(
+--       'cleanup-recordings',
+--       '30 2 * * *',
+--       $job$SELECT public.invoke_edge_function('cleanup-recordings', '{"dry_run": false, "limit": 200}'::jsonb)$job$
+--     );
+--   ELSE
+--     RAISE NOTICE 'pg_cron not installed: schedule cleanup-recordings manually';
+--   END IF;
+-- END;
+-- $$;
+--
+-- To disable again:
+--   SELECT cron.unschedule('cleanup-recordings');
+
+-- No-op so the file applies cleanly while the schedule stays disabled.
+SELECT 1;

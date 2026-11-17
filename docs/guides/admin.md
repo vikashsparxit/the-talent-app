@@ -39,6 +39,19 @@ Guide for **Admin** role — Settings, users, email, assessments builder, and sy
 
 - Org-wide defaults for evaluation builder.
 - Link to `/assessments` for full builder.
+- **Recording consent** (Settings → Assessments → Recording consent): the
+  text every candidate reads and agrees to before an online assessment, which
+  records their camera and microphone. Edit the company name, the privacy
+  contact email and the text; write `{company}` and `{privacyEmail}` in the
+  text and they are filled in from those fields. Use `## ` or a line in
+  `**bold**` for headings, `- ` for bullets and blank lines between
+  paragraphs. The text must be 200–8000 characters and include
+  `{privacyEmail}` (you are warned if `{company}` is missing). The preview
+  shows exactly what candidates see. **Reset to default wording** restores the
+  approved text. Saving creates a new version (shown with the last-updated
+  time): candidates who agreed to an older version are asked to agree again
+  the next time they start or resume an assessment. Only admins can see or
+  change this.
 
 ### Scorecards
 

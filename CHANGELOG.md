@@ -13,7 +13,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes.
+**Database migrations and new edge functions required.** Recording storage
+(Cloudflare R2) must be configured before the new frontend is deployed, or
+candidates cannot start assessments. See
+[docs/ASSESSMENT_MEDIA.md](docs/ASSESSMENT_MEDIA.md).
+
+### Added
+- Webcam recording of online assessments. After agreeing to an admin-editable
+  consent text, the candidate's camera and microphone are recorded for the
+  whole attempt in short segments uploaded straight to a private Cloudflare R2
+  bucket with presigned URLs. Reviewers (admin/HR, recruiters on the job and
+  permitted interviewers) play recordings back next to the integrity events.
+  New edge function `assessment-media`; R2 settings `R2_ACCOUNT_ID`,
+  `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_RECORDINGS` and
+  optional `R2_PRESIGN_TTL_SECONDS`.
+- Spoken-answer questions. Candidates answer out loud; `grade-assessment`
+  transcribes the answer and may suggest a score for reviewers. Spoken
+  questions are added in the assessment builder only; `generate-assessment`
+  never drafts them.
+- Recording consent text in Settings → Assessments, with `{company}` and
+  `{privacyEmail}` placeholders. The defaults are generic ("Your Company",
+  privacy@example.com) and should be replaced. Changing the text asks
+  candidates to agree again.
+- Optional 90-day deletion of recordings (Settings → Assessments, **off by
+  default**). When on, the new `cleanup-recordings` function deletes
+  recordings past 90 days, including the existing backlog, except those of
+  hired candidates. Its daily pg_cron schedule ships disabled.
+- Paste is blocked in subjective and coding answers during an assessment.
+  Attempts are logged as integrity events with the length only, never the
+  text.
+
+### Changed
+- Submitting an assessment waits for pending recording segments. If some were
+  not uploaded or were dropped, the candidate is warned that the recording is
+  incomplete and `media_incomplete_at_submit` is added to the integrity log.
+- Re-assigning an assessment after a completed or expired attempt creates a
+  new attempt instead of failing with "already assigned". Finished attempts
+  stay as history; only one open attempt per candidate and assessment is
+  allowed.
+- `nginx.conf` sends `Permissions-Policy: camera=(self), microphone=(self)`
+  so the app can record. If you serve the app another way, send the same
+  header.
+
+### Migrations
+Run by hand, in this order:
+- `20261114000001_question_type_spoken.sql` (on its own, before the next file)
+- `20261114000002_assessment_media.sql`
+- `20261114000003_assessment_recording_chunk_timing.sql`
+- `20261114000004_cleanup_recordings_cron.sql` (no-op; the schedule stays
+  commented out until you enable it)
+- `20261114000005_assessment_media_consent_config.sql`
+- `20261117000001_candidate_assessments_reassign.sql`
+- `20261117000002_assessment_recording_retention.sql`
+
+Deploy `assessment-media`, `cleanup-recordings`, `candidate-portal`,
+`grade-assessment` and `generate-assessment` before the frontend.
 
 ## [1.0.1] - 2026-11-17
 

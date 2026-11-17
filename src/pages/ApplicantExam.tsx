@@ -66,7 +66,7 @@ export default function ApplicantExam() {
         // Fetch questions for each section (excluding correct_answer for security)
         const { data: questions, error: questionsError } = await supabase
           .from('questions')
-          .select('id, section_id, question_text, type, options, marks, order_index, coding_language, coding_starter_code, coding_test_cases, subjective_max_words, file_config')
+          .select('id, section_id, question_text, type, options, marks, order_index, coding_language, coding_starter_code, coding_test_cases, subjective_max_words, file_config, spoken_config')
           .in('section_id', sections.map(s => s.id))
           .order('order_index');
 

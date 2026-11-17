@@ -1,9 +1,10 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, FileText, Code, MessageSquare, CheckCircle, Upload } from 'lucide-react';
+import { Edit, Trash2, FileText, Code, MessageSquare, CheckCircle, Upload, Mic } from 'lucide-react';
 import type { Question, QuestionType } from '@/types/database';
 import { parseFileConfig } from '@/lib/assessmentFileUpload';
+import { formatSpokenSeconds, parseSpokenConfig } from '@/lib/spokenAnswer';
 
 const typeConfig: Record<QuestionType, { label: string; icon: React.ReactNode; color: string }> = {
   mcq: { 
@@ -25,6 +26,11 @@ const typeConfig: Record<QuestionType, { label: string; icon: React.ReactNode; c
     label: 'File Upload',
     icon: <Upload className="h-3.5 w-3.5" />,
     color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+  },
+  spoken: {
+    label: 'Spoken',
+    icon: <Mic className="h-3.5 w-3.5" />,
+    color: 'bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300',
   },
 };
 
@@ -95,6 +101,18 @@ export function QuestionCard({ question, index, onEdit, onDelete }: QuestionCard
               return (
                 <div className="mt-2 text-xs text-muted-foreground">
                   {parts.join(' · ') || 'File or Drive link'}
+                </div>
+              );
+            })()}
+
+            {/* Spoken Answer Preview */}
+            {question.type === 'spoken' && (() => {
+              const cfg = parseSpokenConfig(question.spoken_config);
+              return (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Up to {formatSpokenSeconds(cfg.max_seconds)}
+                  {cfg.prep_seconds > 0 ? ` · ${cfg.prep_seconds}s prep` : ''}
+                  {` · ${cfg.max_attempts} attempt${cfg.max_attempts === 1 ? '' : 's'}`}
                 </div>
               );
             })()}

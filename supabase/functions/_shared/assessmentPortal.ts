@@ -1,6 +1,16 @@
 // Pure helpers for the candidate assessment portal. No Deno or network APIs,
 // so the same rules run in the edge function and in unit tests.
 
+// assessmentMedia.ts imports gateAnswerWrite from here too. The cycle is safe
+// because neither module uses the other's exports at load time.
+import {
+  extensionForMime,
+  normalizeRecordingMime,
+  parseSpokenConfig,
+  SPOKEN_MAX_BYTES,
+  spokenPrefix,
+} from "./assessmentMedia.ts";
+
 export const ASSESSMENT_FILE_MAX_BYTES = 10 * 1024 * 1024;
 export const ASSESSMENT_FILE_MIMES: ReadonlySet<string> = new Set([
   "image/jpeg",
@@ -11,7 +21,7 @@ export const ASSESSMENT_FILE_MIMES: ReadonlySet<string> = new Set([
 ]);
 
 /** Question types that need AI (or human) grading after submit. MCQ is scored by a DB trigger. */
-export const GRADEABLE_QUESTION_TYPES: ReadonlySet<string> = new Set(["subjective", "coding", "file_upload"]);
+export const GRADEABLE_QUESTION_TYPES: ReadonlySet<string> = new Set(["subjective", "coding", "file_upload", "spoken"]);
 
 /** Fields a candidate must never be able to set on a response. */
 const CLIENT_SCORE_FIELDS = ["execution_result", "auto_score", "final_score", "manual_score"] as const;
@@ -168,11 +178,12 @@ export function getSectionAssessmentId(section: unknown): string | null {
   return null;
 }
 
-/** The question row shape the portal loads: questions(id, type, file_config, section:assessment_sections(assessment_id)). */
+/** The question row shape the portal loads: questions(id, type, file_config, spoken_config, section:assessment_sections(assessment_id)). */
 export interface PortalQuestionRow {
   id: string;
   type: string;
   file_config?: unknown;
+  spoken_config?: unknown;
   section?: unknown;
 }
 
@@ -196,6 +207,10 @@ export function sanitizeResponseForQuestion(
   }
   if (getSectionAssessmentId(question.section) !== ctx.assessmentId) {
     return { ok: false, error: "Invalid question for this assessment" };
+  }
+
+  if (question.type === "spoken") {
+    return sanitizeSpokenResponse(question, ctx, response);
   }
 
   if (question.type !== "file_upload") {
@@ -252,6 +267,69 @@ export function sanitizeResponseForQuestion(
             },
           }
         : {}),
+    },
+  };
+}
+
+const SPOKEN_KEY_FILE = /^([1-9][0-9]?)\.([a-z0-9]{1,8})$/;
+
+/**
+ * Spoken answers: only an uploaded recording of this attempt and question may
+ * be stored, in a fixed shape. The key must sit under
+ * spoken/<candidate_assessment_id>/<question_id>/ and name the attempt, the
+ * MIME type must be an allowed audio type matching the file extension, and
+ * any client-sent transcript or score is dropped: the transcript is always
+ * 'pending' until grading writes it.
+ */
+export function sanitizeSpokenResponse(
+  question: PortalQuestionRow,
+  ctx: { candidateAssessmentId: string; questionId: string },
+  response: unknown,
+): SanitizeResult {
+  const invalid = (error: string): SanitizeResult => ({ ok: false, error });
+  if (!response || typeof response !== "object" || Array.isArray(response)) {
+    return invalid("Invalid spoken answer");
+  }
+  const resp = response as Record<string, unknown>;
+  const file = resp.file && typeof resp.file === "object" && !Array.isArray(resp.file)
+    ? (resp.file as Record<string, unknown>)
+    : null;
+  if (resp.mode !== "audio" || !file) return invalid("Invalid spoken answer");
+
+  let prefix: string;
+  try {
+    prefix = spokenPrefix(ctx.candidateAssessmentId, ctx.questionId);
+  } catch {
+    return invalid("Invalid spoken answer");
+  }
+  const key = typeof file.key === "string" ? file.key : "";
+  const match = key.startsWith(prefix) ? SPOKEN_KEY_FILE.exec(key.slice(prefix.length)) : null;
+  if (!match) return invalid("Invalid recording key");
+
+  const attempt = Number(match[1]);
+  const cfg = parseSpokenConfig(question.spoken_config);
+  if (resp.attempt !== attempt || attempt > cfg.max_attempts) return invalid("Invalid spoken answer attempt");
+
+  const mime = normalizeRecordingMime(file.mime, "audio");
+  if (!mime || extensionForMime(mime) !== match[2]) return invalid("Invalid recording type");
+
+  const size = file.size;
+  if (typeof size !== "number" || !Number.isInteger(size) || size <= 0 || size > SPOKEN_MAX_BYTES) {
+    return invalid("Invalid recording size");
+  }
+  const duration = file.duration_seconds;
+  // A little slack over max_seconds for recorder timing.
+  if (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0 || duration > cfg.max_seconds + 5) {
+    return invalid("Invalid recording duration");
+  }
+
+  return {
+    ok: true,
+    response: {
+      mode: "audio",
+      file: { key, mime, size, duration_seconds: Math.round(duration * 10) / 10 },
+      attempt,
+      transcript_status: "pending",
     },
   };
 }

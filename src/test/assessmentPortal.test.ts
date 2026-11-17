@@ -195,3 +195,83 @@ describe('grading runs once per attempt (bug 1)', () => {
     expect(filter).toContain('grading_started_at.lt.2026-10-11T11:45:00.000Z');
   });
 });
+
+describe('spoken answers are sanitised server-side', () => {
+  const CA_ID = '11111111-1111-4111-8111-111111111111';
+  const Q_ID = '22222222-2222-4222-8222-222222222222';
+  const OTHER = '33333333-3333-4333-8333-333333333333';
+  const spokenCtx = { candidateAssessmentId: CA_ID, assessmentId: ASSESSMENT, questionId: Q_ID };
+  const spokenQ = q({ id: Q_ID, type: 'spoken', spoken_config: { max_seconds: 60, prep_seconds: 0, max_attempts: 2 } });
+  const answer = (over: Record<string, unknown> = {}, file: Record<string, unknown> = {}) => ({
+    mode: 'audio',
+    file: { key: `spoken/${CA_ID}/${Q_ID}/1.webm`, mime: 'audio/webm', size: 4000, duration_seconds: 12.34, ...file },
+    attempt: 1,
+    transcript_status: 'pending',
+    ...over,
+  });
+
+  it('stores only the fixed audio shape, with a pending transcript', () => {
+    const r = sanitizeResponseForQuestion(spokenQ, spokenCtx, answer({
+      transcript_status: 'done',
+      transcript: 'forged transcript',
+      auto_score: 10,
+      extra: 'x',
+    }, { name: 'evil.exe' }));
+    expect(r).toEqual({
+      ok: true,
+      response: {
+        mode: 'audio',
+        file: { key: `spoken/${CA_ID}/${Q_ID}/1.webm`, mime: 'audio/webm', size: 4000, duration_seconds: 12.3 },
+        attempt: 1,
+        transcript_status: 'pending',
+      },
+    });
+  });
+
+  it('normalises a codecs-qualified MIME type and accepts Safari m4a', () => {
+    expect(sanitizeResponseForQuestion(spokenQ, spokenCtx, answer({}, { mime: 'audio/webm;codecs=opus' })).ok).toBe(true);
+    expect(sanitizeResponseForQuestion(spokenQ, spokenCtx, answer({ attempt: 2 }, {
+      key: `spoken/${CA_ID}/${Q_ID}/2.m4a`,
+      mime: 'audio/mp4',
+    })).ok).toBe(true);
+  });
+
+  it('rejects keys outside spoken/<attempt>/<question>/', () => {
+    const bad = [
+      `spoken/${OTHER}/${Q_ID}/1.webm`,
+      `spoken/${CA_ID}/${OTHER}/1.webm`,
+      `recordings/${CA_ID}/${Q_ID}/1.webm`,
+      `spoken/${CA_ID}/${Q_ID}/../../x/1.webm`,
+      `spoken/${CA_ID}/${Q_ID}/1.webm/extra`,
+      `spoken/${CA_ID}/${Q_ID}/0.webm`,
+      `${CA_ID}/${Q_ID}/1.webm`,
+    ];
+    for (const key of bad) {
+      expect(sanitizeResponseForQuestion(spokenQ, spokenCtx, answer({}, { key })), key).toEqual({
+        ok: false,
+        error: 'Invalid recording key',
+      });
+    }
+  });
+
+  it('checks attempt, type, size and duration against the question', () => {
+    const check = (over: Record<string, unknown>, file: Record<string, unknown> = {}) =>
+      sanitizeResponseForQuestion(spokenQ, spokenCtx, answer(over, file)).ok;
+    expect(check({ attempt: 2 })).toBe(false); // key says attempt 1
+    expect(check({ attempt: 3 }, { key: `spoken/${CA_ID}/${Q_ID}/3.webm` })).toBe(false); // max_attempts 2
+    expect(check({}, { mime: 'video/webm' })).toBe(false);
+    expect(check({}, { mime: 'audio/mp4' })).toBe(false); // .webm key
+    expect(check({}, { size: 0 })).toBe(false);
+    expect(check({}, { size: 16 * 1024 * 1024 })).toBe(false);
+    expect(check({}, { duration_seconds: 66 })).toBe(false); // max_seconds 60 + slack
+    expect(check({}, { duration_seconds: -1 })).toBe(false);
+    expect(check({ mode: 'file' })).toBe(false);
+    expect(sanitizeResponseForQuestion(spokenQ, spokenCtx, 'free text').ok).toBe(false);
+    expect(sanitizeResponseForQuestion(spokenQ, spokenCtx, null).ok).toBe(false);
+  });
+
+  it('still requires the question to belong to the attempt', () => {
+    const foreign = { ...spokenQ, section: { assessment_id: 'other' } };
+    expect(sanitizeResponseForQuestion(foreign, spokenCtx, answer()).ok).toBe(false);
+  });
+});

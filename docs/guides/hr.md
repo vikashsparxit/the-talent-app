@@ -76,7 +76,14 @@ Use **Mark as Hired** on pipeline card — feeds dashboard hires, leaderboard, a
 ## Evaluations
 
 - Assign assessments to any candidate.
-- Review proctoring signals (tab switches, timeline).
+- Review proctoring signals (tab switches, timeline). Camera or microphone blocked or stopped, recording interrupted and recording upload failures appear here as signals only.
+- Paste attempts: pasting into written and code answers is blocked, and each attempt is shown on the integrity card and timeline (question, answer type, pasted length — never the text). It is a signal for review only and does not affect the score.
+- **Webcam recordings.** Every online assessment records the candidate's camera and microphone from start to submit (candidates agree first; admins set the consent text in Settings → Assessments → Recording consent). On `/evaluations/:id`, the **Recording** card shows the status (Completed, Interrupted, Not finished, Deleted or Not recorded), length and number of segments. Click **Load recording** to play it: the ~10 second segments play one after another, the segment list lets you jump around, and each integrity event links to that moment in the recording.
+- Who can watch: admin/HR, recruiters assigned to the job and interviewers who can view that candidate's assessment. This is checked on the server; candidates never see recordings.
+- Recordings are **evidence for human review**. Nothing is scored, rejected or moved automatically because of a recording, a camera problem or an integrity event; you decide.
+- Retention: when an admin has turned on automatic deletion (Settings → Assessments → Recording consent), recordings and spoken answers are deleted 90 days after the attempt, unless the candidate has been marked hired. Deletion only happens once the daily cleanup job has also been enabled; until then nothing is removed automatically. The Recording card shows "Kept until" only while deletion is on, and a deleted recording or spoken answer is shown as **Deleted**.
+- **Spoken answers** (question type added by an admin in `/assessments`, with max length, prep time, attempts and a rubric): on `/evaluations/:id`, click **Load recording** to play the candidate's answer and read the AI transcript (or "Transcription pending/failed").
+- The AI score on a spoken answer is an **AI suggestion (advisory)**, based on content only. It shows until you set a score; use **Edit** to enter your own, which always wins. Nothing is decided automatically from recordings or AI scores.
 - Export results to CSV.
 - **Analytics** tab (`/analytics`) for org-wide assessment metrics.
 

@@ -7,6 +7,7 @@ import type {
   CandidateResponse, 
   Question,
   QuestionFileConfig,
+  QuestionSpokenConfig,
   MCQOption,
   CodingTestCase
 } from '@/types/database';
@@ -209,6 +210,7 @@ export function useEvaluationDetails(candidateAssessmentId: string | undefined) 
           options: parseOptions(r.question.options),
           coding_test_cases: parseTestCases(r.question.coding_test_cases),
           file_config: r.question.file_config as unknown as QuestionFileConfig | null,
+          spoken_config: r.question.spoken_config as unknown as QuestionSpokenConfig | null,
         } : undefined,
       })) as (CandidateResponse & { question: Question })[];
 

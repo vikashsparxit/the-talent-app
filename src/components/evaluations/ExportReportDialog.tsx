@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Download, FileText } from 'lucide-react';
 import { exportToCSV, formatDateForExport, formatPercentage, formatBoolean } from '@/lib/exportUtils';
 import { useToast } from '@/hooks/use-toast';
+import { computeIntegrityStats, normalizeIntegrityLog } from '@/lib/integrity';
 
 interface Evaluation {
   id: string;
@@ -52,6 +53,7 @@ const AVAILABLE_COLUMNS = [
   { id: 'started_at', label: 'Started At', key: 'started_at' },
   { id: 'completed_at', label: 'Completed At', key: 'completed_at' },
   { id: 'integrity_issues', label: 'Integrity Issues', key: 'integrity_log' },
+  { id: 'paste_attempts', label: 'Paste Attempts', key: 'integrity_log' },
 ] as const;
 
 export function ExportReportDialog({
@@ -104,6 +106,9 @@ export function ExportReportDialog({
             if (col.id === 'integrity_issues') {
               const log = value as unknown[] | undefined;
               return log?.length ? String(log.length) : '0';
+            }
+            if (col.id === 'paste_attempts') {
+              return String(computeIntegrityStats(normalizeIntegrityLog(value)).pasteAttempts);
             }
             return String(value ?? '');
           },

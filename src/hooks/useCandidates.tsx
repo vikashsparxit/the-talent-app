@@ -16,6 +16,7 @@ import { lookupApplicantAvatarUrls } from '@/lib/candidateDetail';
 import { normalizeApplicantEmail } from '@/lib/applicantApplicationEligibility';
 
 import { normalizeIntegrityLog } from '@/lib/integrity';
+import { assignmentBlockedMessage, decideAssessmentAssignment } from '@/lib/assessmentAssignment';
 
 const parseIntegrityLog = (log: Json | null): IntegrityEvent[] => normalizeIntegrityLog(log);
 
@@ -715,6 +716,26 @@ export function useCandidateAssessments(options?: { enabled?: boolean }) {
       const tokenExpiresAt = deadline
         ? new Date(new Date(deadline).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Earlier attempts are kept as history; only an open one blocks a new attempt.
+      const { data: prior, error: priorError } = await supabase
+        .from('candidate_assessments')
+        .select('id, status, deadline, token_expires_at')
+        .eq('candidate_id', candidate_id)
+        .eq('assessment_id', assessment_id);
+      if (priorError) throw priorError;
+
+      const decision = decideAssessmentAssignment(prior ?? []);
+      if (decision.outcome === 'blocked') throw new Error(assignmentBlockedMessage(decision.reason));
+      if (decision.expireIds.length > 0) {
+        // Invites past their deadline or link expiry can never be started; only their status changes.
+        const { error: expireError } = await supabase
+          .from('candidate_assessments')
+          .update({ status: 'expired' })
+          .in('id', decision.expireIds)
+          .eq('status', 'invited');
+        if (expireError) throw expireError;
+      }
 
       const { data, error } = await supabase
         .from('candidate_assessments')
