@@ -2113,6 +2113,7 @@ export type Database = {
       }
     }
     Functions: {
+      _app_timezone: { Args: never; Returns: string }
       _period_candidate_flags: {
         Args: {
           p_end_ts: string

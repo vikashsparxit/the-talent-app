@@ -912,8 +912,13 @@ export function useDashboardMetrics(period: 'week' | 'month' = 'week') {
       const { data, error } = await supabase.rpc('get_dashboard_metrics', { p_period: period });
       if (error) throw error;
 
-      const metrics = (data ?? {}) as Record<string, number>;
+      const metrics = (data ?? {}) as Partial<Record<
+        'totalCandidates' | 'activeCandidates' | 'openJobs' | 'openPositions' | 'hiresThisPeriod' | 'newThisPeriod' | 'newThisPeriodTrend',
+        number
+      >> & { periodStart?: string; timezone?: string };
       return {
+        periodStart: metrics.periodStart ?? null,
+        timezone: metrics.timezone ?? null,
         totalCandidates: metrics.totalCandidates ?? 0,
         activeCandidates: metrics.activeCandidates ?? 0,
         openJobs: metrics.openJobs ?? 0,

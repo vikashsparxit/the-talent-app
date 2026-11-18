@@ -37,7 +37,9 @@ import {
   Clock, ChevronRight, TrendingUp, Sparkles, AlertTriangle,
   BarChart3, Trophy, Briefcase, UserRound, Building2, Gauge,
 } from 'lucide-react';
-import { differenceInDays, parseISO, subDays, format } from 'date-fns';
+import { differenceInDays, parseISO, format } from 'date-fns';
+import { useAppTimezone } from '@/hooks/useSystemConfig';
+import { FALLBACK_TIMEZONE, reportDateRange } from '@/lib/dashboardPeriod';
 import { useToast } from '@/hooks/use-toast';
 import { usePipelineAnalysis, useAnalysePipeline, computePipelineMetrics } from '@/hooks/usePipelineAnalysis';
 import { PipelineHealthPanel } from '@/components/pipeline/PipelineHealthPanel';
@@ -146,8 +148,12 @@ export default function Reports() {
   const [selectedRecruiter, setSelectedRecruiter] = useState<RecruiterStat | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<VendorStat | null>(null);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const rangeStart = format(subDays(new Date(), parseInt(dateRange)), 'yyyy-MM-dd');
+  // Days in the app timezone, like the dashboard. Queries wait for the zone ('' disables them).
+  const { data: appTimezone, isError: appTimezoneError } = useAppTimezone();
+  const reportTimezone = appTimezone ?? (appTimezoneError ? FALLBACK_TIMEZONE : null);
+  const { start: rangeStart, end: today } = reportTimezone
+    ? reportDateRange(dateRange, new Date(), reportTimezone)
+    : { start: '', end: '' };
   const recruiterQuery = (searchParams.get('q') ?? '').trim().toLowerCase();
   const { data: recruiterStats = [], isLoading: recruiterLoading } = useRecruiterPerformance(
     rangeStart,
@@ -327,6 +333,7 @@ export default function Reports() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="week">This week</SelectItem>
                   <SelectItem value="7">Last 7 days</SelectItem>
                   <SelectItem value="14">Last 14 days</SelectItem>
                   <SelectItem value="30">Last 30 days</SelectItem>
@@ -452,7 +459,7 @@ export default function Reports() {
                         </div>
                         <div>
                           <SheetTitle>{selectedRecruiter.recruiter_name}</SheetTitle>
-                          <p className="text-sm text-muted-foreground">Last {dateRange} days · {selectedRecruiter.sourced} candidates sourced</p>
+                          <p className="text-sm text-muted-foreground">{dateRange === 'week' ? 'This week' : `Last ${dateRange} days`} · {selectedRecruiter.sourced} candidates sourced</p>
                         </div>
                       </div>
                     </SheetHeader>
@@ -956,7 +963,7 @@ export default function Reports() {
               const conversionRate = rows.length > 0
                 ? Math.round(
                     (rows.filter(
-                      (r) => r.hired_at != null || r.candidate_status === 'shortlisted',
+                      (r) => r.hired_at != null,
                     ).length /
                       rows.length) *
                       100,

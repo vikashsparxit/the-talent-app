@@ -13,9 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-**Database migrations and new edge functions required.** Recording storage
-(Cloudflare R2) must be configured before the new frontend is deployed, or
-candidates cannot start assessments. See
+**Database migrations and new edge functions required.** See
+[docs/UPGRADING.md](docs/UPGRADING.md#unreleased) before you upgrade.
+Recording storage (Cloudflare R2) must be configured before the new frontend
+is deployed, or candidates cannot start assessments. See
 [docs/ASSESSMENT_MEDIA.md](docs/ASSESSMENT_MEDIA.md).
 
 ### Added
@@ -44,6 +45,18 @@ candidates cannot start assessments. See
   text.
 
 ### Changed
+- Pipeline: re-opening a candidate puts them back at the stage they stopped
+  at (the stage they were rejected at in their latest round), in a new round,
+  instead of starting a new full round at every stage.
+- Dashboard "Hires this week/month" and Reports (recruiter and vendor
+  leaderboards, Time & Velocity) use one hire rule: `hired_at` inside the
+  window. Shortlisted candidates without `hired_at` and `updated_at` edits no
+  longer count as hires, and a hire is counted in the window its `hired_at`
+  falls in. Windows are calendar days in the deployment timezone
+  (`_app_timezone()`: `system_config.default_timezone`, else UTC). "This
+  week" starts on Monday; "this month" is the last 30 days including today.
+  Migrations: `20261024000001_dashboard_hires_ist_week.sql` and
+  `20261024000002_shared_hired_rule_reports.sql`.
 - Submitting an assessment waits for pending recording segments. If some were
   not uploaded or were dropped, the candidate is warned that the recording is
   incomplete and `media_incomplete_at_submit` is added to the integrity log.
@@ -55,8 +68,18 @@ candidates cannot start assessments. See
   so the app can record. If you serve the app another way, send the same
   header.
 
+### Fixed
+- `advance_candidate_stage` is round-aware: it advances only the latest
+  round's row and creates the next-stage row in the same round, so a
+  re-opened candidate moves on the board and earlier rounds stay unchanged. A
+  repeated Advance no longer adds a duplicate row. Migration:
+  `20261027000002_advance_candidate_stage_round_aware.sql`. Smoke test:
+  `supabase/scripts/smoke/20261024_reopen_advance_smoke.sql`.
+- Vendor leaderboard returned shortlisted, hired and conversion in the wrong
+  columns.
+
 ### Migrations
-Run by hand, in this order:
+Assessment media migrations. Run by hand, in this order:
 - `20261114000001_question_type_spoken.sql` (on its own, before the next file)
 - `20261114000002_assessment_media.sql`
 - `20261114000003_assessment_recording_chunk_timing.sql`
