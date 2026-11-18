@@ -44,6 +44,34 @@ From 1.0.0 on, migrations are append-only on top of the baseline, and shipped
 migrations are never edited. Each release lists the migration files it adds and
 any operator steps here.
 
+### Unreleased
+
+Not yet in a tagged release. Back up your database before you start.
+
+**Apply the migrations,** in this order:
+
+1. `20261024000001_dashboard_hires_ist_week.sql`
+2. `20261024000002_shared_hired_rule_reports.sql`
+3. `20261027000002_advance_candidate_stage_round_aware.sql`
+
+Notes:
+
+- **Filename order.** These files sort before migrations that 1.0.1 already
+  applied. `supabase db push` refuses them unless you pass `--include-all`;
+  with `psql`, run them in the order above.
+- **Round-aware advance (3).** Run it as the function owner of
+  `advance_candidate_stage`, like the 1.0.1 fix. Afterwards you can run
+  `supabase/scripts/smoke/20261024_reopen_advance_smoke.sql` on a local
+  throwaway database.
+- **Timezone.** Dashboard and Reports windows use
+  `system_config.default_timezone`, or UTC when it is unset or invalid. Set it
+  before you compare numbers with older reports.
+- **Old re-open rows (optional).** Earlier re-opens created an empty row at
+  every stage, which put the candidate at the final stage on the board.
+  `supabase/scripts/20261024_cleanup_reopen_rows.sql` finds and removes those
+  rows. It is a dry run unless you pass `-v commit=true`. Run it on a copy
+  first.
+
 ### 1.0.0 to 1.0.1
 
 1.0.1 adds database migrations and new edge functions. Back up your database

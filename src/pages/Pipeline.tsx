@@ -51,6 +51,7 @@ import {
   type PipelineActionId,
 } from '@/lib/pipelineActionQueue';
 import { buildPipelineClosePlan } from '@/lib/pipelineClosePlan';
+import { pickBoardRows } from '@/lib/pipelineReopen';
 import { useQuery } from '@tanstack/react-query';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
@@ -499,28 +500,11 @@ export default function Pipeline({ embedded = false }: PipelineProps) {
   /** Best row per candidate for the active job — action counts ignore search/status filters. */
   const boardInterviews = useMemo(() => {
     const stageOrder = new Map(selectedJobStages.map(s => [s.id, s.order_index]));
-    const bestRowMap = new Map<string, { stageOrder: number; ts: string; id: string }>();
-    interviews.forEach(iv => {
-      if (!selectedJobStageIds.has(iv.job_interview_stage_id)) return;
-      if (isOutOfActivePipeline(iv.candidate)) return;
-      const order = stageOrder.get(iv.job_interview_stage_id) ?? -1;
-      const ts = (iv as { created_at?: string }).created_at ?? '';
-      const cur = bestRowMap.get(iv.candidate_id);
-      if (
-        !cur ||
-        order > cur.stageOrder ||
-        (order === cur.stageOrder && ts > cur.ts) ||
-        (order === cur.stageOrder && ts === cur.ts && iv.id > cur.id)
-      ) {
-        bestRowMap.set(iv.candidate_id, { stageOrder: order, ts, id: iv.id });
-      }
-    });
-
-    return interviews.filter(iv => {
-      if (!selectedJobStageIds.has(iv.job_interview_stage_id)) return false;
-      if (isOutOfActivePipeline(iv.candidate)) return false;
-      return bestRowMap.get(iv.candidate_id)?.id === iv.id;
-    });
+    const eligible = interviews.filter(
+      iv => selectedJobStageIds.has(iv.job_interview_stage_id) && !isOutOfActivePipeline(iv.candidate),
+    );
+    const bestRowMap = pickBoardRows(eligible, stageOrder);
+    return eligible.filter(iv => bestRowMap.get(iv.candidate_id)?.id === iv.id);
   }, [interviews, selectedJobStages, selectedJobStageIds]);
 
   const activeJob = useMemo(
@@ -1645,7 +1629,7 @@ export default function Pipeline({ embedded = false }: PipelineProps) {
             <DialogTitle>Re-open Candidate?</DialogTitle>
             <DialogDescription>
               Start a new round for <strong>{reopenConfirm?.candidate?.name}</strong> on <strong>{reopenConfirm?.job?.title}</strong>.
-              Round 1 feedback will be preserved in history.
+              They resume at the stage they stopped at; earlier rounds' feedback is preserved in history.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

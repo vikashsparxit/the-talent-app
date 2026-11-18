@@ -13,7 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No unreleased changes.
+**Database migrations required.** See
+[docs/UPGRADING.md](docs/UPGRADING.md#unreleased) before you upgrade.
+
+### Changed
+- Pipeline: re-opening a candidate puts them back at the stage they stopped
+  at (the stage they were rejected at in their latest round), in a new round,
+  instead of starting a new full round at every stage.
+- Dashboard "Hires this week/month" and Reports (recruiter and vendor
+  leaderboards, Time & Velocity) use one hire rule: `hired_at` inside the
+  window. Shortlisted candidates without `hired_at` and `updated_at` edits no
+  longer count as hires, and a hire is counted in the window its `hired_at`
+  falls in. Windows are calendar days in the deployment timezone
+  (`_app_timezone()`: `system_config.default_timezone`, else UTC). "This
+  week" starts on Monday; "this month" is the last 30 days including today.
+  Migrations: `20261024000001_dashboard_hires_ist_week.sql` and
+  `20261024000002_shared_hired_rule_reports.sql`.
+
+### Fixed
+- `advance_candidate_stage` is round-aware: it advances only the latest
+  round's row and creates the next-stage row in the same round, so a
+  re-opened candidate moves on the board and earlier rounds stay unchanged. A
+  repeated Advance no longer adds a duplicate row. Migration:
+  `20261027000002_advance_candidate_stage_round_aware.sql`. Smoke test:
+  `supabase/scripts/smoke/20261024_reopen_advance_smoke.sql`.
+- Vendor leaderboard returned shortlisted, hired and conversion in the wrong
+  columns.
 
 ## [1.0.1] - 2026-11-17
 

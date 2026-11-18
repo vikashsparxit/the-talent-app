@@ -32,6 +32,8 @@ import {
   periodDelta,
   type TimeVelocityMetrics,
 } from '@/hooks/useTimeVelocityMetrics';
+import { useAppTimezone } from '@/hooks/useSystemConfig';
+import { FALLBACK_TIMEZONE, velocityPeriodDays } from '@/lib/dashboardPeriod';
 
 function shortJobTitle(title: string): string {
   return title.length > 22 ? `${title.slice(0, 20)}…` : title;
@@ -247,8 +249,13 @@ function LoadingSkeleton() {
 
 export function TimeVelocitySection() {
   const [periodDays, setPeriodDays] = useState('30');
-  const days = parseInt(periodDays, 10);
-  const { data: metrics, isLoading, isError, error, refetch } = useTimeVelocityMetrics(days);
+  const { data: appTimezone, isError: appTimezoneError } = useAppTimezone();
+  const timezone = appTimezone ?? (appTimezoneError ? FALLBACK_TIMEZONE : null);
+  const days = velocityPeriodDays(periodDays, new Date(), timezone ?? FALLBACK_TIMEZONE);
+  const periodLabel = periodDays === 'week' ? 'this week' : `last ${days} days`;
+  const { data: metrics, isLoading, isError, error, refetch } = useTimeVelocityMetrics(days, {
+    enabled: periodDays !== 'week' || timezone !== null,
+  });
 
   const firstIvDelta = metrics
     ? periodDelta(metrics.current.avg_time_to_first_interview, metrics.previous.avg_time_to_first_interview)
@@ -262,7 +269,7 @@ export function TimeVelocitySection() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-muted-foreground max-w-xl">
           Hiring velocity metrics derived from candidate creation, interview scheduling, and explicit hire signals
-          (candidates.hired_at or legacy shortlisted status).
+          (candidates.hired_at).
         </p>
         <div className="flex items-center gap-3 shrink-0">
           <span className="text-sm text-muted-foreground">Period:</span>
@@ -271,6 +278,7 @@ export function TimeVelocitySection() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="week">This week</SelectItem>
               <SelectItem value="30">Last 30 days</SelectItem>
               <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
@@ -278,7 +286,7 @@ export function TimeVelocitySection() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading || (periodDays === 'week' && timezone === null) ? (
         <LoadingSkeleton />
       ) : isError ? (
         <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
@@ -304,7 +312,7 @@ export function TimeVelocitySection() {
             <KpiCard
               title="Avg Time to First Interview"
               value={formatDays(metrics.current.avg_time_to_first_interview)}
-              description={`First interviews scheduled in last ${days} days`}
+              description={`First interviews scheduled ${periodLabel}`}
               sample={metrics.current.first_iv_sample}
               delta={firstIvDelta}
               invertDelta
@@ -313,7 +321,7 @@ export function TimeVelocitySection() {
             <KpiCard
               title="Avg Time to Hire"
               value={formatDays(metrics.current.avg_time_to_hire)}
-              description={`Hires completed in last ${days} days`}
+              description={`Hires completed ${periodLabel}`}
               sample={metrics.current.hired_sample}
               delta={hireDelta}
               invertDelta
