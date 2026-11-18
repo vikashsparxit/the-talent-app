@@ -97,3 +97,27 @@ describe('saving after submit is an error (bug 5)', () => {
     expect(err.code).toBe('already_submitted');
   });
 });
+
+describe('spoken answers on the dashboard path', () => {
+  it('saves through save-response with the attempt token, so the server validates the recording', async () => {
+    tableResult = { data: { access_token: 'tok-123' }, error: null };
+    invoke.mockResolvedValue({ data: { success: true }, error: null });
+    const response = {
+      mode: 'audio',
+      file: { key: 'spoken/ca-1/q-1/1.webm', mime: 'audio/webm', size: 10, duration_seconds: 3 },
+      attempt: 1,
+      transcript_status: 'pending',
+    };
+
+    const { result } = renderHook(() => useSaveResponse(), { wrapper });
+    await result.current.mutateAsync({ candidateAssessmentId: 'ca-1', questionId: 'q-1', response, accessToken: 'session' });
+
+    expect(invoke).toHaveBeenCalledWith('candidate-portal', {
+      body: {
+        action: 'save-response',
+        access_token: 'tok-123',
+        data: { question_id: 'q-1', response, time_spent: undefined },
+      },
+    });
+  });
+});

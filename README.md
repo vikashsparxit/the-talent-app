@@ -212,6 +212,7 @@ Hosting is environment-specific — see [docs/LOCAL_SETUP_GUIDE.md](docs/LOCAL_S
 - [docs/EMAIL_NOTIFICATIONS.md](docs/EMAIL_NOTIFICATIONS.md) — scoped email types and admin toggles
 - [docs/guides/oss-self-host.md](docs/guides/oss-self-host.md) — self-host quickstart
 - [docs/PUBLIC_JOBS_API.md](docs/PUBLIC_JOBS_API.md) — Public Jobs API for job boards and partner integrations
+- [docs/ASSESSMENT_MEDIA.md](docs/ASSESSMENT_MEDIA.md) — assessment webcam recording and spoken answers (Cloudflare R2 setup, retention)
 
 ---
 

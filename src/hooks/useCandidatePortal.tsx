@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Json } from '@/integrations/supabase/types';
 import { PortalError, portalErrorFromBody, portalErrorFromDb } from '@/lib/assessmentGrading';
+import { isSpokenAnswered } from '@/lib/spokenAnswer';
 
 /**
  * Calls the candidate-portal function and turns non-2xx responses into a
@@ -37,7 +38,7 @@ export interface CodingTestCase {
 export interface PortalQuestion {
   id: string;
   question_text: string;
-  type: 'mcq' | 'coding' | 'subjective' | 'file_upload';
+  type: 'mcq' | 'coding' | 'subjective' | 'file_upload' | 'spoken';
   marks: number;
   order_index: number;
   options: Array<{ id: string; text: string }> | null;
@@ -51,6 +52,12 @@ export interface PortalQuestion {
     allowed_mime_types: string[];
     max_file_bytes: number;
     max_files?: number;
+  } | null;
+  /** Spoken questions only: { max_seconds, prep_seconds, max_attempts } */
+  spoken_config?: {
+    max_seconds: number;
+    prep_seconds: number;
+    max_attempts: number;
   } | null;
   section_id: string;
 }
@@ -250,6 +257,20 @@ export function useSaveResponse() {
     }) => {
       const sanitizedResponse = stripClientScoreFields(response);
 
+      // Spoken answers always go through save-response so the server checks
+      // the recording key and shape, also for signed-in applicants.
+      if (accessToken === 'session' && isSpokenAnswered(sanitizedResponse)) {
+        await invokePortal(
+          {
+            action: 'save-response',
+            access_token: await resolvePortalAccessToken(accessToken, candidateAssessmentId),
+            data: { question_id: questionId, response: sanitizedResponse, time_spent: timeSpent },
+          },
+          'Failed to save response',
+        );
+        return;
+      }
+
       // If using session auth, upsert directly
       if (accessToken === 'session') {
         // Check if response exists
@@ -396,6 +417,8 @@ export function useLogIntegrityEvent() {
         question_id?: string;
         question_index?: number;
         section_title?: string;
+        chars?: number;
+        input_kind?: string;
       };
       accessToken: string;
     }) => {

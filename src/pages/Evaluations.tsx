@@ -409,9 +409,15 @@ export default function Evaluations() {
                             return <span className="text-green-600 text-sm">Clean</span>;
                           }
                           return (
-                            <div className="flex items-center gap-1 text-amber-600" title={`${stats.tabSwitchCount} tab switches, ${stats.eventCount} events`}>
+                            <div
+                              className="flex items-center gap-1 text-amber-600"
+                              title={`${stats.tabSwitchCount} tab switches, ${stats.pasteAttempts} blocked paste attempts, ${stats.eventCount} events (signal for review)`}
+                            >
                               <AlertTriangle className="h-4 w-4" />
                               <span className="text-sm">{stats.tabSwitchCount}</span>
+                              {stats.pasteAttempts > 0 && (
+                                <span className="text-xs text-muted-foreground">· {stats.pasteAttempts} paste</span>
+                              )}
                             </div>
                           );
                         })()}

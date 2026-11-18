@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Loader2,
   Sparkles,
+  Mic,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,8 @@ import {
   normalizeIntegrityLog,
 } from '@/lib/integrity';
 import { parseFileUploadResponse } from '@/lib/assessmentFileUpload';
+import { SpokenAnswerReview } from '@/components/evaluations/SpokenAnswerReview';
+import { RecordingReview } from '@/components/evaluations/RecordingReview';
 import { safeExternalUrl } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { isGradingPending } from '@/lib/assessmentGrading';
@@ -253,8 +256,21 @@ function ResponseCard({
       );
     }
 
+    if (question.type === 'spoken') {
+      return (
+        <SpokenAnswerReview
+          candidateAssessmentId={response.candidate_assessment_id}
+          questionId={question.id}
+          responseData={responseData}
+        />
+      );
+    }
+
     return <p className="text-muted-foreground">No response</p>;
   };
+
+  // Spoken answers: the AI score is a suggestion until a reviewer sets one.
+  const aiAdvisory = question.type === 'spoken' && response.manual_score == null;
 
   const handleSaveGrade = () => {
     onGrade(parseFloat(score) || 0, feedback);
@@ -268,7 +284,7 @@ function ResponseCard({
         {renderResponse()}
       </div>
 
-      {((question.type === 'subjective' || question.type === 'file_upload') && question.subjective_rubric) && (
+      {((question.type === 'subjective' || question.type === 'file_upload' || question.type === 'spoken') && question.subjective_rubric) && (
         <div>
           <Label className="text-sm text-muted-foreground mb-2 block">
             {question.type === 'file_upload' ? 'Review Rubric' : 'Grading Rubric'}
@@ -287,7 +303,7 @@ function ResponseCard({
             <Label>Score</Label>
             {response.auto_score !== null && response.auto_score !== undefined && (
               <Badge variant="secondary" className="text-xs">
-                Auto: {response.auto_score}
+                {question.type === 'spoken' ? 'AI suggestion (advisory)' : 'Auto'}: {response.auto_score}
               </Badge>
             )}
           </div>
@@ -317,10 +333,15 @@ function ResponseCard({
               )}
             </div>
           )}
+          {aiAdvisory && response.auto_score != null && !isEditing && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Showing the AI suggestion until a reviewer sets a score.
+            </p>
+          )}
         </div>
 
         <div className="flex-2">
-          <Label className="mb-2 block">Feedback</Label>
+          <Label className="mb-2 block">{aiAdvisory && response.feedback && !isEditing ? 'AI feedback (advisory)' : 'Feedback'}</Label>
           {isEditing ? (
             <Textarea
               value={feedback}
@@ -496,6 +517,7 @@ function QuestionCard({
       case 'coding': return <Code className="h-4 w-4" />;
       case 'subjective': return <FileText className="h-4 w-4" />;
       case 'file_upload': return <Upload className="h-4 w-4" />;
+      case 'spoken': return <Mic className="h-4 w-4" />;
     }
   };
 
@@ -505,6 +527,7 @@ function QuestionCard({
       case 'coding': return 'Coding';
       case 'subjective': return 'Subjective';
       case 'file_upload': return 'File Upload';
+      case 'spoken': return 'Spoken answer';
       default: return question.type;
     }
   };
@@ -659,7 +682,7 @@ export default function EvaluationDetail() {
   const answeredCount = responses.length;
   const totalQuestionsCount = allQuestions.length;
 
-  const gradeableTypes = new Set(['subjective', 'coding', 'file_upload']);
+  const gradeableTypes = new Set(['subjective', 'coding', 'file_upload', 'spoken']);
   const hasUnscoredAiTargets = responses.some(
     (r) =>
       r.question &&
@@ -867,7 +890,17 @@ export default function EvaluationDetail() {
                   <div className="text-sm space-y-1">
                     <p>Tab switches: <span className="font-medium">{integrityStats.tabSwitchCount}</span></p>
                     <p>Time away: <span className="font-medium">{formatSecondsAway(integrityStats.totalSecondsAway)}</span></p>
+                    {integrityStats.pasteAttempts > 0 && (
+                      <p>
+                        Paste attempts (blocked): <span className="font-medium">{integrityStats.pasteAttempts}</span>
+                      </p>
+                    )}
                   </div>
+                  {integrityStats.pasteAttempts > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Signal for review only; pasting was blocked and the score is unaffected.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-green-600">
@@ -890,6 +923,8 @@ export default function EvaluationDetail() {
               <p className="text-sm text-muted-foreground">
                 {integrityStats.tabSwitchCount} tab switch{integrityStats.tabSwitchCount !== 1 ? 'es' : ''},{' '}
                 {formatSecondsAway(integrityStats.totalSecondsAway)} away,{' '}
+                {integrityStats.pasteAttempts > 0 &&
+                  `${integrityStats.pasteAttempts} blocked paste attempt${integrityStats.pasteAttempts !== 1 ? 's' : ''}, `}
                 {integrityStats.eventCount} total event{integrityStats.eventCount !== 1 ? 's' : ''}
               </p>
             </CardHeader>
@@ -911,6 +946,12 @@ export default function EvaluationDetail() {
                       {event.duration_seconds !== undefined && (
                         <span>Away for {formatSecondsAway(event.duration_seconds)}</span>
                       )}
+                      {event.type === 'paste_attempt' && (
+                        <span>
+                          {event.input_kind === 'coding' ? 'Code answer' : event.input_kind === 'subjective' ? 'Written answer' : 'Answer'}
+                          {event.chars !== undefined && ` · ${event.chars} char${event.chars !== 1 ? 's' : ''}`}
+                        </span>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -918,6 +959,9 @@ export default function EvaluationDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Webcam recording (evidence for human review; server re-checks access) */}
+        <RecordingReview candidateAssessmentId={ca.id} integrityEvents={sortedIntegrityLog} />
 
         {/* Evaluator Notes */}
         <Card className="mb-8">

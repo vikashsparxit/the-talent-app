@@ -16,12 +16,13 @@ import {
   isTokenExpired,
   needsAiGrading,
   parseFileConfig,
-  parseLinkPolicy,
   type PortalQuestionRow,
   sanitizeFileName,
   sanitizeResponseForQuestion,
   shouldRequeueGrading,
 } from "../_shared/assessmentPortal.ts";
+import { loadLinkPolicy } from "../_shared/portalAttempt.ts";
+import { parseSpokenConfig } from "../_shared/assessmentMedia.ts";
 
 interface CandidatePortalRequest {
   action: 'validate' | 'start' | 'save-response' | 'submit' | 'log-integrity' | 'get-responses' | 'auto-complete' | 'notify-staff-complete' | 'create-file-upload';
@@ -31,7 +32,7 @@ interface CandidatePortalRequest {
 
 type AdminClient = SupabaseClient;
 
-const QUESTION_SELECT = 'id, type, file_config, section:assessment_sections!inner(assessment_id)';
+const QUESTION_SELECT = 'id, type, file_config, spoken_config, section:assessment_sections!inner(assessment_id)';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -48,15 +49,6 @@ function parseAssessmentConfig(raw: unknown): {
   }
   const c = raw as Record<string, unknown>;
   return { notify_recruiter_on_complete: c.notify_recruiter_on_complete !== false };
-}
-
-async function loadLinkPolicy(supabaseAdmin: AdminClient) {
-  const { data } = await supabaseAdmin
-    .from('system_config')
-    .select('config_value')
-    .eq('config_key', 'assessment_link_policy')
-    .maybeSingle();
-  return parseLinkPolicy(data?.config_value);
 }
 
 /** Fire-and-forget AI grading for non-MCQ responses after submit. */
@@ -409,7 +401,7 @@ serveWithCors(async (req) => {
             id, title, description, order_index, weightage,
             questions(
               id, question_text, type, marks, order_index, options,
-              coding_language, coding_starter_code, subjective_max_words, subjective_rubric, file_config, section_id
+              coding_language, coding_starter_code, subjective_max_words, subjective_rubric, file_config, spoken_config, section_id
             )
           `)
           .eq('assessment_id', ca.assessment_id)
@@ -450,6 +442,10 @@ serveWithCors(async (req) => {
             if (q.type === 'file_upload') {
               safeQuestion.file_config = parseFileConfig(q.file_config);
               // Rubric is staff-only — do not expose to candidates
+            }
+
+            if (q.type === 'spoken') {
+              safeQuestion.spoken_config = parseSpokenConfig(q.spoken_config);
             }
 
             return safeQuestion;

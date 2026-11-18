@@ -2,7 +2,13 @@
 
 export type AppRole = 'admin' | 'hr' | 'recruiter' | 'interviewer';
 
-export type QuestionType = 'mcq' | 'coding' | 'subjective' | 'file_upload';
+export type QuestionType = 'mcq' | 'coding' | 'subjective' | 'file_upload' | 'spoken';
+
+export interface QuestionSpokenConfig {
+  max_seconds: number;
+  prep_seconds: number;
+  max_attempts: number;
+}
 
 export interface QuestionFileConfig {
   allow_file: boolean;
@@ -100,6 +106,8 @@ export interface Question {
   subjective_rubric?: string;
   /** Present for file_upload questions; see QuestionFileConfig */
   file_config?: QuestionFileConfig | null;
+  /** Present for spoken questions; see QuestionSpokenConfig */
+  spoken_config?: QuestionSpokenConfig | null;
   created_at: string;
   updated_at: string;
 }
@@ -160,15 +168,43 @@ export interface CandidateAssessment {
   assessment?: Assessment;
 }
 
+/** Camera / microphone / recording problems. Signals for reviewers only; they never change a score or stage. */
+export type MediaIntegrityEventType =
+  | 'camera_denied'
+  | 'mic_denied'
+  | 'camera_stopped'
+  | 'recording_interrupted'
+  | 'recording_upload_failed'
+  // Submitted (by the candidate after a warning, or by the timer) with recording segments or a spoken answer not yet saved.
+  | 'media_incomplete_at_submit';
+
 export interface IntegrityEvent {
-  type: 'tab_switch' | 'focus_lost' | 'fullscreen_exit';
+  type:
+    | 'tab_switch'
+    | 'focus_lost'
+    | 'fullscreen_exit'
+    | 'paste_attempt'
+    // Written server-side when an attempt is closed without the candidate submitting.
+    | 'auto_submit_time_limit'
+    | 'auto_complete_browser_close'
+    | MediaIntegrityEventType;
   timestamp: string;
   duration_seconds?: number;
+  /** paste_attempt only: length of the blocked text. The text itself is never stored. */
+  chars?: number;
+  /** paste_attempt only: answer input the paste targeted ('subjective' | 'coding'). */
+  input_kind?: string;
   /** Active question when the event occurred (forward-looking; older events omit these). */
   question_id?: string;
   /** 1-based index for display (e.g. Q3). */
   question_index?: number;
   section_title?: string;
+  /** media_incomplete_at_submit only: who submitted ('candidate' chose to submit anyway, 'timer' at time up). */
+  submitted_by?: 'candidate' | 'timer';
+  /** media_incomplete_at_submit only: webcam segments not uploaded (still waiting, or already dropped/failed). */
+  pending_segments?: number;
+  /** media_incomplete_at_submit only: 1-based numbers of spoken questions with a take not saved. */
+  unsaved_spoken_questions?: number[];
 }
 
 // Candidate Response

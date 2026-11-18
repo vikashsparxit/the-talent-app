@@ -10,6 +10,8 @@ import type {
   MCQOption,
   CodingTestCase,
   QuestionFileConfig,
+  QuestionSpokenConfig,
+  QuestionType,
 } from '@/types/database';
 import type { Json, TablesUpdate } from '@/integrations/supabase/types';
 import { parseFileConfig } from '@/lib/assessmentFileUpload';
@@ -236,6 +238,7 @@ export function useAssessmentDetails(assessmentId: string | undefined) {
           options: parseOptions(q.options),
           correct_answer: q.correct_answer,
           coding_test_cases: parseTestCases(q.coding_test_cases),
+          spoken_config: q.spoken_config as unknown as QuestionSpokenConfig | null,
           file_config: q.file_config
             ? parseFileConfig(q.file_config)
             : q.type === 'file_upload'
@@ -360,7 +363,7 @@ export function useQuestions(assessmentId: string | undefined) {
   const createQuestion = useMutation({
     mutationFn: async (question: {
       section_id: string;
-      type: 'mcq' | 'coding' | 'subjective' | 'file_upload';
+      type: QuestionType;
       question_text: string;
       options?: MCQOption[];
       correct_answer?: unknown;
@@ -372,6 +375,7 @@ export function useQuestions(assessmentId: string | undefined) {
       subjective_max_words?: number;
       subjective_rubric?: string;
       file_config?: QuestionFileConfig | null;
+      spoken_config?: QuestionSpokenConfig | null;
     }) => {
       const { data, error } = await supabase
         .from('questions')
@@ -389,6 +393,7 @@ export function useQuestions(assessmentId: string | undefined) {
           subjective_max_words: question.subjective_max_words,
           subjective_rubric: question.subjective_rubric,
           file_config: question.file_config as unknown as Json,
+          spoken_config: question.spoken_config as unknown as Json,
         })
         .select()
         .single();
@@ -410,10 +415,10 @@ export function useQuestions(assessmentId: string | undefined) {
   });
 
   const updateQuestion = useMutation({
-    mutationFn: async ({ id, options, coding_test_cases, correct_answer, file_config, ...updates }: { 
+    mutationFn: async ({ id, options, coding_test_cases, correct_answer, file_config, spoken_config, ...updates }: {
       id: string;
       section_id?: string;
-      type?: 'mcq' | 'coding' | 'subjective' | 'file_upload';
+      type?: QuestionType;
       question_text?: string;
       options?: MCQOption[];
       correct_answer?: unknown;
@@ -425,12 +430,14 @@ export function useQuestions(assessmentId: string | undefined) {
       subjective_max_words?: number;
       subjective_rubric?: string;
       file_config?: QuestionFileConfig | null;
+      spoken_config?: QuestionSpokenConfig | null;
     }) => {
       const updateData: TablesUpdate<'questions'> = { ...updates };
       if (options !== undefined) updateData.options = options as unknown as Json;
       if (coding_test_cases !== undefined) updateData.coding_test_cases = coding_test_cases as unknown as Json;
       if (correct_answer !== undefined) updateData.correct_answer = correct_answer as Json;
       if (file_config !== undefined) updateData.file_config = file_config as unknown as Json;
+      if (spoken_config !== undefined) updateData.spoken_config = spoken_config as unknown as Json;
       
       const { data, error } = await supabase
         .from('questions')

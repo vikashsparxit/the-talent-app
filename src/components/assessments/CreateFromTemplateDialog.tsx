@@ -98,6 +98,7 @@ export function CreateFromTemplateDialog({
             subjective_max_words: q.subjective_max_words,
             subjective_rubric: q.subjective_rubric,
             file_config: (q.file_config ?? null) as Json,
+            spoken_config: (q.spoken_config ?? null) as Json,
           }));
           
           const { error: questionsError } = await supabase

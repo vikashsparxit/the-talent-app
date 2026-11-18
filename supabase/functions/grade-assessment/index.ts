@@ -4,6 +4,18 @@ import { requireStaff } from "../_shared/auth.ts";
 import { untrustedContentRule, wrapUntrusted } from "../_shared/aiGuards.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { GRADEABLE_QUESTION_TYPES, gradingClaimFilter } from "../_shared/assessmentPortal.ts";
+import { loadR2Config, presignGet, type R2Config } from "../_shared/r2.ts";
+import { spokenPrefix } from "../_shared/assessmentMedia.ts";
+import {
+  buildSpokenGradePrompt,
+  parseSpokenGradeResult,
+  parseStoredSpokenResponse,
+  pickSpokenChunk,
+  SPOKEN_AI_MAX_BYTES,
+  spokenSystemInstruction,
+  type TranscriptError,
+  withTranscript,
+} from "../_shared/spokenGrading.ts";
 
 const GRADEABLE_TYPES = GRADEABLE_QUESTION_TYPES;
 const GEMINI_CONCURRENCY = 3;
@@ -57,7 +69,7 @@ interface GradeResult {
   status: "graded" | "skipped" | "failed";
   reason?: string;
   score?: number;
-  method?: "execution" | "ai" | "ai_multimodal" | "ai_link";
+  method?: "execution" | "ai" | "ai_multimodal" | "ai_link" | "ai_audio";
 }
 
 interface AssessmentGradeSummary {
@@ -255,6 +267,157 @@ async function callGeminiGrade(
   return { score, feedback: feedback || "AI graded." };
 }
 
+/** Gemini call for spoken answers: audio inline, strict JSON {transcript, score, feedback} back as text. */
+async function callGeminiSpoken(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  maxMarks: number,
+  audio: { mimeType: string; data: string },
+): Promise<string> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: spokenSystemInstruction(maxMarks, untrustedContentRule("candidate_answer")) }],
+        },
+        contents: [{ role: "user", parts: [{ inlineData: audio }, { text: prompt }] }],
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "object",
+            properties: {
+              transcript: { type: "string" },
+              score: { type: "number" },
+              feedback: { type: "string" },
+            },
+            required: ["transcript", "score", "feedback"],
+          },
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Gemini error ${res.status}: ${errText.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const parts = (data?.candidates?.[0]?.content?.parts ?? []) as Array<{ text?: unknown }>;
+  return parts.map((p) => (typeof p.text === "string" ? p.text : "")).join("");
+}
+
+/**
+ * Spoken answers: download the recording from R2 (object key from the
+ * service-written chunks table, not from the candidate's response), ask Gemini
+ * for a transcript and an advisory content score, and store the transcript in
+ * the response jsonb with auto_score/feedback. Never overwrites manual_score.
+ */
+async function gradeSpokenResponse(
+  supabase: SupabaseClient,
+  row: ResponseRow,
+  question: QuestionRow,
+  maxMarks: number,
+  apiKey: string,
+  model: string,
+  r2: R2Config | null,
+): Promise<GradeResult> {
+  const result = (status: GradeResult["status"], extra: Partial<GradeResult> = {}): GradeResult => ({
+    response_id: row.id,
+    question_id: row.question_id,
+    question_type: question.type,
+    status,
+    ...extra,
+  });
+  const save = async (patch: Record<string, unknown>) => {
+    const { error } = await supabase
+      .from("candidate_responses")
+      .update(patch)
+      .eq("id", row.id)
+      .is("manual_score", null);
+    if (error) throw error;
+  };
+  const fail = async (error: TranscriptError, status: "skipped" | "failed"): Promise<GradeResult> => {
+    await save({ response: withTranscript(row.response, { status: "failed", error }) });
+    return result(status, { reason: error });
+  };
+
+  const stored = parseStoredSpokenResponse(row.response);
+  if (!stored) return result("skipped", { reason: "no_recording" });
+  if (!r2) return await fail("storage_not_configured", "skipped");
+
+  const { data: rec, error: recError } = await supabase
+    .from("assessment_recordings")
+    .select("id, mime, duration_seconds, status, deleted_at")
+    .eq("candidate_assessment_id", row.candidate_assessment_id)
+    .eq("kind", "spoken_answer")
+    .eq("question_id", row.question_id)
+    .maybeSingle();
+  if (recError) throw recError;
+  if (!rec || rec.status === "deleted" || rec.deleted_at) return await fail("recording_not_found", "skipped");
+
+  const { data: chunks, error: chunkError } = await supabase
+    .from("assessment_recording_chunks")
+    .select("seq, object_key, bytes")
+    .eq("recording_id", rec.id);
+  if (chunkError) throw chunkError;
+  const chunk = pickSpokenChunk(
+    (chunks ?? []) as { seq: number; object_key: string; bytes: number }[],
+    stored.attempt,
+    spokenPrefix(row.candidate_assessment_id, row.question_id),
+  );
+  if (!chunk) return await fail("recording_not_found", "skipped");
+  if (Number(chunk.bytes) > SPOKEN_AI_MAX_BYTES) return await fail("audio_too_large", "skipped");
+
+  let bytes: Uint8Array;
+  try {
+    const res = await fetch(await presignGet(r2, { key: chunk.object_key, expiresIn: 300 }));
+    if (!res.ok) throw new Error(`recording download failed (${res.status})`);
+    if (Number(res.headers.get("content-length")) > SPOKEN_AI_MAX_BYTES) {
+      await res.body?.cancel();
+      return await fail("audio_too_large", "skipped");
+    }
+    bytes = new Uint8Array(await res.arrayBuffer());
+  } catch (e) {
+    console.error(`spoken download for response ${row.id} failed:`, e instanceof Error ? e.message : e);
+    return await fail("download_failed", "failed");
+  }
+  if (bytes.length > SPOKEN_AI_MAX_BYTES) return await fail("audio_too_large", "skipped");
+
+  let text: string;
+  try {
+    const prompt = buildSpokenGradePrompt({
+      questionText: question.question_text,
+      rubric: question.subjective_rubric,
+      maxMarks,
+      durationSeconds: rec.duration_seconds == null ? null : Number(rec.duration_seconds),
+    });
+    text = await callGeminiSpoken(apiKey, model, prompt, maxMarks, { mimeType: rec.mime, data: bytesToBase64(bytes) });
+  } catch (e) {
+    console.error(`spoken grade for response ${row.id} failed:`, e instanceof Error ? e.message : e);
+    return await fail("ai_failed", "failed");
+  }
+
+  const parsed = parseSpokenGradeResult(text, maxMarks);
+  if (!parsed.ok) return await fail(parsed.error, "failed");
+
+  const patch: Record<string, unknown> = {
+    response: withTranscript(row.response, { status: "done", transcript: parsed.transcript }),
+  };
+  if (parsed.score !== null) {
+    patch.auto_score = parsed.score;
+    patch.feedback = parsed.feedback || "AI suggestion.";
+  }
+  await save(patch);
+  return parsed.score !== null
+    ? result("graded", { score: parsed.score, method: "ai_audio" })
+    : result("skipped", { reason: "no_ai_score" });
+}
+
 function shouldSkip(row: ResponseRow, regrade: boolean): string | null {
   if (row.manual_score != null) {
     return "human_graded";
@@ -274,6 +437,7 @@ async function gradeOneResponse(
   apiKey: string,
   model: string,
   regrade: boolean,
+  r2: R2Config | null,
 ): Promise<GradeResult> {
   const question = unwrapQuestion(row.question)!;
   const skip = shouldSkip(row, regrade);
@@ -299,6 +463,10 @@ async function gradeOneResponse(
   }
 
   try {
+    if (question.type === "spoken") {
+      return await gradeSpokenResponse(supabase, row, question, maxMarks, apiKey, model, r2);
+    }
+
     let score: number | null = null;
     let feedback = "";
     let method: GradeResult["method"] = "ai";
@@ -480,6 +648,7 @@ async function gradeAssessment(
   apiKey: string,
   model: string,
   regrade: boolean,
+  r2: R2Config | null,
 ): Promise<AssessmentGradeSummary> {
   // Claim the attempt so concurrent requests (link submit, dashboard notify,
   // the overdue sweep, a staff click) do not grade it twice at the same time.
@@ -505,7 +674,7 @@ async function gradeAssessment(
   }
   const tracked = !claimError;
 
-  const summary = await gradeAssessmentResponses(supabase, candidateAssessmentId, apiKey, model, regrade);
+  const summary = await gradeAssessmentResponses(supabase, candidateAssessmentId, apiKey, model, regrade, r2);
 
   if (tracked) {
     const { error: doneError } = await supabase
@@ -526,6 +695,7 @@ async function gradeAssessmentResponses(
   apiKey: string,
   model: string,
   regrade: boolean,
+  r2: R2Config | null,
 ): Promise<AssessmentGradeSummary> {
   const { data: rows, error } = await supabase
     .from("candidate_responses")
@@ -562,7 +732,7 @@ async function gradeAssessmentResponses(
   });
 
   const results = await mapPool(targets, GEMINI_CONCURRENCY, (row) =>
-    gradeOneResponse(supabase, row, apiKey, model, regrade)
+    gradeOneResponse(supabase, row, apiKey, model, regrade, r2)
   );
 
   const graded = results.filter((r) => r.status === "graded").length;
@@ -671,6 +841,8 @@ serveWithCors(async (req) => {
       return jsonResponse({ error: "Gemini API key not configured" }, 500);
     }
     const model = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
+    // Spoken answers need R2; without it they are skipped with transcript_error storage_not_configured.
+    const r2 = loadR2Config((name) => Deno.env.get(name));
 
     let assessmentIds: string[] = [];
     if (allPending) {
@@ -691,7 +863,7 @@ serveWithCors(async (req) => {
     // within each assessment, questions run with limited concurrency.
     const summaries: AssessmentGradeSummary[] = [];
     for (const id of assessmentIds) {
-      summaries.push(await gradeAssessment(supabase, id, apiKey, model, regrade));
+      summaries.push(await gradeAssessment(supabase, id, apiKey, model, regrade, r2));
     }
 
     const totals = summaries.reduce(

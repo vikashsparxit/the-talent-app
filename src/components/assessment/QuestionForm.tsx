@@ -18,6 +18,12 @@ import {
   DEFAULT_FILE_CONFIG,
   type QuestionFileConfig,
 } from '@/lib/assessmentFileUpload';
+import {
+  clampSpokenConfig,
+  DEFAULT_SPOKEN_CONFIG,
+  parseSpokenConfig,
+  SPOKEN_CONFIG_LIMITS,
+} from '@/lib/spokenAnswer';
 
 interface QuestionFormProps {
   assessmentId: string;
@@ -51,6 +57,7 @@ export function QuestionForm({ assessmentId, sectionId, question, onSaved, onCan
     subjective_max_words: 500,
     subjective_rubric: '',
     file_config: { ...DEFAULT_FILE_CONFIG } as QuestionFileConfig,
+    spoken_config: { ...DEFAULT_SPOKEN_CONFIG } as Record<keyof typeof DEFAULT_SPOKEN_CONFIG, number | string>,
   });
 
   useEffect(() => {
@@ -72,6 +79,7 @@ export function QuestionForm({ assessmentId, sectionId, question, onSaved, onCan
           allow_file: fc?.allow_file !== false,
           allow_link: fc?.allow_link !== false,
         },
+        spoken_config: parseSpokenConfig(question.spoken_config),
       });
     }
   }, [question]);
@@ -111,6 +119,9 @@ export function QuestionForm({ assessmentId, sectionId, question, onSaved, onCan
         allow_file,
         allow_link,
       };
+      questionData.subjective_rubric = form.subjective_rubric;
+    } else if (form.type === 'spoken') {
+      questionData.spoken_config = clampSpokenConfig(form.spoken_config);
       questionData.subjective_rubric = form.subjective_rubric;
     }
 
@@ -188,6 +199,7 @@ export function QuestionForm({ assessmentId, sectionId, question, onSaved, onCan
               <SelectItem value="coding">Coding</SelectItem>
               <SelectItem value="subjective">Subjective</SelectItem>
               <SelectItem value="file_upload">File Upload</SelectItem>
+              <SelectItem value="spoken">Spoken answer</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -418,6 +430,51 @@ export function QuestionForm({ assessmentId, sectionId, question, onSaved, onCan
             <Textarea
               id="fileRubric"
               placeholder="Describe how this submission should be evaluated..."
+              rows={4}
+              value={form.subjective_rubric}
+              onChange={(e) => setForm(prev => ({ ...prev, subjective_rubric: e.target.value }))}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Spoken Answer Options */}
+      {form.type === 'spoken' && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Candidates answer out loud with their microphone (no text box). The recording, an AI transcript and an
+            AI suggested score are shown to reviewers. The AI score is advisory; reviewers set the final score.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {([
+              ['max_seconds', 'Max answer length (seconds)'],
+              ['prep_seconds', 'Preparation time (seconds)'],
+              ['max_attempts', 'Attempts allowed'],
+            ] as const).map(([field, label]) => (
+              <div key={field} className="space-y-2">
+                <Label htmlFor={`spoken-${field}`}>{label}</Label>
+                <Input
+                  id={`spoken-${field}`}
+                  type="number"
+                  min={SPOKEN_CONFIG_LIMITS[field].min}
+                  max={SPOKEN_CONFIG_LIMITS[field].max}
+                  value={form.spoken_config[field]}
+                  onChange={(e) =>
+                    setForm(prev => ({ ...prev, spoken_config: { ...prev.spoken_config, [field]: e.target.value } }))
+                  }
+                  onBlur={() => setForm(prev => ({ ...prev, spoken_config: clampSpokenConfig(prev.spoken_config) }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {SPOKEN_CONFIG_LIMITS[field].min}–{SPOKEN_CONFIG_LIMITS[field].max}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="spokenRubric">Grading Rubric (for evaluators and the AI suggestion)</Label>
+            <Textarea
+              id="spokenRubric"
+              placeholder="Describe what a good spoken answer covers..."
               rows={4}
               value={form.subjective_rubric}
               onChange={(e) => setForm(prev => ({ ...prev, subjective_rubric: e.target.value }))}

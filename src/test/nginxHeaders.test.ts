@@ -9,12 +9,12 @@ const headerValues = (name: string) =>
   [...conf.matchAll(new RegExp(`add_header ${name} "([^"]*)" always;`, 'g'))].map((m) => m[1]);
 
 describe('nginx security headers', () => {
-  it('lets our own pages use the microphone for voice search and nothing else', () => {
+  it('lets our own pages use the camera and microphone (voice search, assessment recording) and nothing else', () => {
     const policies = headerValues('Permissions-Policy');
     // Set once at server level; no location overrides add_header.
     expect(policies).toHaveLength(1);
     for (const policy of policies) {
-      expect(policy).toBe('camera=(), microphone=(self), geolocation=()');
+      expect(policy).toBe('camera=(self), microphone=(self), geolocation=()');
     }
   });
 

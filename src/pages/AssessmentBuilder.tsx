@@ -45,6 +45,7 @@ import {
   LayoutTemplate,
   AlertTriangle,
   Upload,
+  Mic,
 } from 'lucide-react';
 import { useAssessmentDetails, useAssessments, useSections, useQuestions } from '@/hooks/useAssessments';
 import { QuestionForm } from '@/components/assessment/QuestionForm';
@@ -64,6 +65,7 @@ const questionTypeIcons: Record<QuestionType, React.ReactNode> = {
   coding: <Code className="h-4 w-4" />,
   subjective: <MessageSquare className="h-4 w-4" />,
   file_upload: <Upload className="h-4 w-4" />,
+  spoken: <Mic className="h-4 w-4" />,
 };
 
 export default function AssessmentBuilder() {

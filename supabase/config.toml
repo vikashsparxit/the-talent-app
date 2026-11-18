@@ -69,6 +69,11 @@ verify_jwt = false
 [functions.candidate-portal]
 verify_jwt = false
 
+# Magic-link candidates have no user JWT; the function checks the access token,
+# the applicant JWT or the staff JWT itself.
+[functions.assessment-media]
+verify_jwt = false
+
 [functions.send-applicant-email]
 verify_jwt = false
 
